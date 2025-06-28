@@ -1,41 +1,19 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { UserContext } from '../context/user.context'
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useUser } from '../context/user.context';
 
 const UserAuth = ({ children }) => {
+  const { user, loading } = useUser(); // use shared context
 
-    const { user } = useContext(UserContext)
-    const [ loading, setLoading ] = useState(true)
-    const token = localStorage.getItem('token')
-    const navigate = useNavigate()
+  if (loading) {
+    return <div>Loading...</div>; // wait for /users/me check
+  }
 
+  if (!user) {
+    return <Navigate to="/login" />; // redirect if not logged in
+  }
 
+  return children; // ✅ show protected content
+};
 
-
-    useEffect(() => {
-        if (user) {
-            setLoading(false)
-        }
-
-        if (!token) {
-            navigate('/login')
-        }
-
-        if (!user) {
-            navigate('/login')
-        }
-
-    }, [])
-
-    if (loading) {
-        return <div>Loading...</div>
-    }
-
-
-    return (
-        <>
-            {children}</>
-    )
-}
-
-export default UserAuth
+export default UserAuth;

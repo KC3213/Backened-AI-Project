@@ -154,15 +154,25 @@ const Project = () => {
             setFileTree(res.data.project.fileTree || {})
         })
 
-        axios.get('/users/all').then(res => {
+        useEffect(() => {
+    const token = localStorage.getItem('token');
+    console.log('Sending token:', token); // Should be a real JWT
 
-            setUsers(res.data.users)
+    axios.get(`${import.meta.env.VITE_API_URL}/users/all`, {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    })
+    .then((res) => {
+        console.log('Protected data:', res.data);
+        // You can now set this in state and display
+    })
+    .catch((err) => {
+        console.error('Auth error:', err.response?.data || err.message);
+        // You might want to redirect to login if unauthorized
+    });
+}, []);
 
-        }).catch(err => {
-
-            console.log(err)
-
-        })
 
     }, [])
 
