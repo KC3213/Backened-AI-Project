@@ -4,6 +4,15 @@ import { validationResult } from 'express-validator';
 import redisClient from '../services/redis.service.js';
 
 
+export const getMe = async (req, res) => {
+  try {
+    res.status(200).json({ user: req.user });
+  } catch (err) {
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+};
+
+
 export const createUserController = async (req, res) => {
 
     const errors = validationResult(req);
