@@ -116,13 +116,14 @@ const Project = () => {
                 className='overflow-auto bg-slate-950 text-white rounded-sm p-2'
             >
                 <Markdown
-                    children={messageObject.text}
                     options={{
                         overrides: {
                             code: SyntaxHighlightedCode,
                         },
                     }}
-                />
+                >
+                    {messageObject.text}
+                </Markdown>
             </div>)
     }
 
