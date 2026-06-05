@@ -33,6 +33,10 @@ io.use(async (socket, next) => {
 
         socket.project = await projectModel.findById(projectId);
 
+        if (!socket.project) {
+            return next(new Error('Project not found'));
+        }
+
 
         if (!token) {
             return next(new Error('Authentication error'))

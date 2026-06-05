@@ -86,7 +86,11 @@ export const profileController = async (req, res) => {
 export const logoutController = async (req, res) => {
     try {
 
-        const token = req.cookies.token || req.headers.authorization.split(' ')[ 1 ];
+        const token = req.cookies.token || req.headers.authorization?.split(' ')[ 1 ];
+
+        if (!token) {
+            return res.status(401).send({ error: 'Unauthorized User' });
+        }
 
         redisClient.set(token, 'logout', 'EX', 60 * 60 * 24);
 

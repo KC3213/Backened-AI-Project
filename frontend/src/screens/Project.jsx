@@ -12,8 +12,8 @@ function SyntaxHighlightedCode(props) {
     const ref = useRef(null)
 
     React.useEffect(() => {
-        if (ref.current && props.className?.includes('lang-') && window.hljs) {
-            window.hljs.highlightElement(ref.current)
+        if (ref.current && props.className?.includes('lang-')) {
+            hljs.highlightElement(ref.current)
 
             // hljs won't reprocess the element unless this attribute is removed
             ref.current.removeAttribute('data-highlighted')
@@ -23,21 +23,31 @@ function SyntaxHighlightedCode(props) {
     return <code {...props} ref={ref} />
 }
 
+function parseAiMessage(message) {
+    try {
+        return JSON.parse(message)
+    } catch {
+        return { text: message }
+    }
+}
+
 
 const Project = () => {
 
     const location = useLocation()
+    const navigate = useNavigate()
 
     const [ isSidePanelOpen, setIsSidePanelOpen ] = useState(false)
     const [ isModalOpen, setIsModalOpen ] = useState(false)
-    const [ selectedUserId, setSelectedUserId ] = useState(new Set()) // Initialized as Set
-    const [ project, setProject ] = useState(location.state.project)
+    const [ selectedUserId, setSelectedUserId ] = useState(new Set())
+    const [ project, setProject ] = useState(location.state?.project)
     const [ message, setMessage ] = useState('')
     const { user } = useContext(UserContext)
-    const messageBox = React.createRef()
+    const messageBox = useRef(null)
+    const webContainerRef = useRef(null)
 
     const [ users, setUsers ] = useState([])
-    const [ messages, setMessages ] = useState([]) // New state variable for messages
+    const [ messages, setMessages ] = useState([])
     const [ fileTree, setFileTree ] = useState({})
 
     const [ currentFile, setCurrentFile ] = useState(null)
@@ -67,10 +77,12 @@ const Project = () => {
     function addCollaborators() {
 
         axios.put("/projects/add-user", {
-            projectId: location.state.project._id,
+            projectId: project._id,
             users: Array.from(selectedUserId)
-        }).then(res => {
-            console.log(res.data)
+        }).then(() => axios.get(`/projects/get-project/${project._id}`))
+        .then(res => {
+            setProject(res.data.project)
+            setSelectedUserId(new Set())
             setIsModalOpen(false)
 
         }).catch(err => {
@@ -80,19 +92,24 @@ const Project = () => {
     }
 
     const send = () => {
+        const trimmedMessage = message.trim()
+
+        if (!trimmedMessage || !user) {
+            return
+        }
 
         sendMessage('project-message', {
-            message,
+            message: trimmedMessage,
             sender: user
         })
-        setMessages(prevMessages => [ ...prevMessages, { sender: user, message } ]) // Update messages state
+        setMessages(prevMessages => [ ...prevMessages, { sender: user, message: trimmedMessage } ])
         setMessage("")
 
     }
 
     function WriteAiMessage(message) {
 
-        const messageObject = JSON.parse(message)
+        const messageObject = parseAiMessage(message)
 
         return (
             <div
@@ -110,43 +127,55 @@ const Project = () => {
     }
 
     useEffect(() => {
+        if (!project?._id) {
+            navigate('/')
+        }
+    }, [ navigate, project?._id ])
 
-        initializeSocket(project._id)
+    useEffect(() => {
+        let isMounted = true
 
-        if (!webContainer) {
-            getWebContainer().then(container => {
+        getWebContainer().then(container => {
+            if (isMounted) {
+                webContainerRef.current = container
                 setWebContainer(container)
                 console.log("container started")
-            })
+            }
+        }).catch(err => {
+            console.log(err)
+        })
+
+        return () => {
+            isMounted = false
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!project?._id) {
+            return
         }
 
+        const socketConnection = initializeSocket(project._id)
 
-        receiveMessage('project-message', data => {
-
+        const unsubscribe = receiveMessage('project-message', async data => {
             console.log(data)
             
-            if (data.sender._id == 'ai') {
+            if (data.sender?._id === 'ai') {
+                const aiMessage = parseAiMessage(data.message)
 
+                console.log(aiMessage)
 
-                const message = JSON.parse(data.message)
-
-                console.log(message)
-
-                webContainer?.mount(message.fileTree)
-
-                if (message.fileTree) {
-                    setFileTree(message.fileTree || {})
+                if (aiMessage.fileTree) {
+                    await webContainerRef.current?.mount(aiMessage.fileTree)
+                    setFileTree(aiMessage.fileTree || {})
                 }
-                setMessages(prevMessages => [ ...prevMessages, data ]) // Update messages state
-            } else {
-
-
-                setMessages(prevMessages => [ ...prevMessages, data ]) // Update messages state
             }
+
+            setMessages(prevMessages => [ ...prevMessages, data ])
         })
 
 
-        axios.get(`/projects/get-project/${location.state.project._id}`).then(res => {
+        axios.get(`/projects/get-project/${project._id}`).then(res => {
 
             console.log(res.data.project)
 
@@ -154,27 +183,23 @@ const Project = () => {
             setFileTree(res.data.project.fileTree || {})
         })
 
-        useEffect(() => {
-    const token = localStorage.getItem('token');
-    console.log('Sending token:', token); // Should be a real JWT
+        axios.get('/users/all').then((res) => {
+            setUsers(res.data.users || [])
+        }).catch((err) => {
+            console.error('Auth error:', err.response?.data || err.message)
+        })
 
-    axios.get(`${import.meta.env.VITE_API_URL}/users/all`, {
-        headers: {
-            Authorization: `Bearer ${token}`
+        return () => {
+            unsubscribe()
+            socketConnection.disconnect()
         }
-    })
-    .then((res) => {
-        console.log('Protected data:', res.data);
-        // You can now set this in state and display
-    })
-    .catch((err) => {
-        console.error('Auth error:', err.response?.data || err.message);
-        // You might want to redirect to login if unauthorized
-    });
-}, []);
+    }, [ project?._id ])
 
-
-    }, [])
+    useEffect(() => {
+        messageBox.current?.scrollTo({
+            top: messageBox.current.scrollHeight,
+        })
+    }, [ messages ])
 
     function saveFileTree(ft) {
         axios.put('/projects/update-file-tree', {
@@ -188,10 +213,8 @@ const Project = () => {
     }
 
 
-    // Removed appendIncomingMessage and appendOutgoingMessage functions
-
-    function scrollToBottom() {
-        messageBox.current.scrollTop = messageBox.current.scrollHeight
+    if (!project) {
+        return null
     }
 
     return (
@@ -212,7 +235,7 @@ const Project = () => {
                         ref={messageBox}
                         className="message-box p-1 flex-grow flex flex-col gap-1 overflow-auto max-h-full scrollbar-hide">
                         {messages.map((msg, index) => (
-                            <div key={index} className={`${msg.sender._id === 'ai' ? 'max-w-80' : 'max-w-52'} ${msg.sender._id == user._id.toString() && 'ml-auto'}  message flex flex-col p-2 bg-slate-50 w-fit rounded-md`}>
+                            <div key={index} className={`${msg.sender._id === 'ai' ? 'max-w-80' : 'max-w-52'} ${msg.sender._id === user._id.toString() && 'ml-auto'}  message flex flex-col p-2 bg-slate-50 w-fit rounded-md`}>
                                 <small className='opacity-65 text-xs'>{msg.sender.email}</small>
                                 <div className='text-sm'>
                                     {msg.sender._id === 'ai' ?
@@ -246,15 +269,15 @@ const Project = () => {
                     </header>
                     <div className="users flex flex-col gap-2">
 
-                        {project.users && project.users.map(user => {
+                        {project.users && project.users.map(collaborator => {
 
 
                             return (
-                                <div className="user cursor-pointer hover:bg-slate-200 p-2 flex gap-2 items-center">
+                                <div key={collaborator._id || collaborator} className="user cursor-pointer hover:bg-slate-200 p-2 flex gap-2 items-center">
                                     <div className='aspect-square rounded-full w-fit h-fit flex items-center justify-center p-5 text-white bg-slate-600'>
                                         <i className="ri-user-fill absolute"></i>
                                     </div>
-                                    <h1 className='font-semibold text-lg'>{user.email}</h1>
+                                    <h1 className='font-semibold text-lg'>{collaborator.email || collaborator}</h1>
                                 </div>
                             )
 
@@ -414,7 +437,7 @@ const Project = () => {
                         </header>
                         <div className="users-list flex flex-col gap-2 mb-16 max-h-96 overflow-auto">
                             {users.map(user => (
-                                <div key={user.id} className={`user cursor-pointer hover:bg-slate-200 ${Array.from(selectedUserId).indexOf(user._id) != -1 ? 'bg-slate-200' : ""} p-2 flex gap-2 items-center`} onClick={() => handleUserClick(user._id)}>
+                                <div key={user._id} className={`user cursor-pointer hover:bg-slate-200 ${selectedUserId.has(user._id) ? 'bg-slate-200' : ""} p-2 flex gap-2 items-center`} onClick={() => handleUserClick(user._id)}>
                                     <div className='aspect-square relative rounded-full w-fit h-fit flex items-center justify-center p-5 text-white bg-slate-600'>
                                         <i className="ri-user-fill absolute"></i>
                                     </div>
