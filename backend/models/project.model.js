@@ -96,6 +96,11 @@ const projectSchema = new mongoose.Schema({
             ref: 'user'
         }
     ],
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user',
+        default: null,
+    },
     inviteCode: {
         type: String,
         unique: true,

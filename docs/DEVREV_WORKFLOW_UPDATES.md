@@ -9,7 +9,9 @@ This branch adds the first Jira/DevRev-style workflow layer to the project works
 - Invite code and invite link joining.
 - Project sprints.
 - Project tickets with assignment, priority, and status updates.
-- Responsive project dashboard with Chat, Work, and Files tabs.
+- Responsive project dashboard with Chat and Work tabs.
+- Admin-only sprint creation.
+- My tasks view for tickets assigned to the logged-in user.
 
 ## Realtime Chat
 
@@ -48,13 +50,15 @@ Joining:
 
 ## Sprint And Ticket Flow
 
-Inside a project, members can create sprints and tickets.
+Inside a project, the project admin can create sprints. The project admin is the project owner. For older projects without an owner, the backend backfills the owner from the first project member.
 
 Sprint fields:
 
 - Name
 - Goal
 - Status: `planned`, `active`, `closed`
+
+Members can create tickets for the project and assign tickets to any project member.
 
 Ticket fields:
 
@@ -66,6 +70,29 @@ Ticket fields:
 - Sprint: sprint or backlog
 
 Ticket updates are project-scoped. Only project members can update tickets for that project.
+
+Backend sprint permission:
+
+1. Request user must belong to the project.
+2. Backend ensures the project has an owner.
+3. Backend rejects sprint creation unless `project.owner` matches the request user.
+
+Frontend sprint permission:
+
+- The sprint form is only shown to the project admin.
+- Non-admin users can still create tickets and update ticket status.
+
+## Chat Refresh Author Fix
+
+The chat author display bug came from `/users/me` returning only the decoded JWT payload. Existing tokens did not include `_id`, so after refresh the frontend could not compare the logged-in user ID to the saved message sender ID.
+
+Fix:
+
+- `/users/me` now loads the full user from MongoDB.
+- New JWTs include `_id` and `email`.
+- Existing tokens still work because the backend resolves the user by email.
+
+See [CHAT_REFRESH_AUTHOR_FIX.md](CHAT_REFRESH_AUTHOR_FIX.md) for the detailed root cause and manual verification steps.
 
 ## UI Changes
 
@@ -80,9 +107,15 @@ Project workspace:
 - Header with socket connection state.
 - Chat tab for persisted realtime messages.
 - Work tab for sprint and ticket management.
-- Files tab for AI-generated code/file-tree editing and WebContainer preview.
+- Larger Work layout with more spacing, wider board columns, and taller ticket lanes.
+- My tasks panel for tickets assigned to the logged-in user.
 - Member drawer.
 - Invite card with copy-link and regenerate actions.
+
+Removed:
+
+- Files tab and WebContainer preview from the project workspace UI.
+- Sprints sidebar card, since sprint creation and ticket assignment now live in the Work tab.
 
 ## Verification
 
@@ -100,23 +133,27 @@ Behavior smoke-tested:
 - Registered member user.
 - Created project.
 - Joined project through invite code.
-- Connected two Socket.IO clients to the same project room.
+- Connected a Socket.IO client to the project room.
 - Sent one project message.
-- Confirmed both clients received the same server-saved message.
+- Confirmed the message persisted with the sender ID matching the refreshed `/users/me` user ID.
 - Created a sprint.
+- Confirmed only the project owner can create a sprint.
 - Created a ticket assigned to the joined member.
 - Updated ticket status to `in-progress`.
+- Confirmed `/users/me` returns a user with `_id`.
+- Checked the Work UI in the browser at desktop and 390px mobile widths.
 
 Smoke-test result:
 
 ```json
 {
-  "ownerMessages": 1,
-  "memberMessages": 1,
-  "joinedMembers": 2,
-  "sprint": "Sprint 1",
-  "ticket": "Fix socket",
-  "updatedStatus": "in-progress"
+  "ownerHasId": true,
+  "projectOwner": "owner.<suffix>@t.dev",
+  "memberSprintStatus": 400,
+  "sprint": "Owner sprint",
+  "ticket": "Assigned smoke ticket",
+  "memberTaskCount": 1,
+  "socketSenderMatchesRefreshUser": true
 }
 ```
 

@@ -1,12 +1,12 @@
 # Backend AI Project
 
-Collaborative AI coding workspace built with an Express API, MongoDB, Redis, Socket.IO, Google Gemini, and a Vite React frontend. Users can register, create projects, invite collaborators, chat in a project room, ask `@ai` for code, edit the generated file tree, run generated projects in the browser with WebContainer, and manage project sprints/tickets.
+Collaborative project workspace built with an Express API, MongoDB, Redis, Socket.IO, Google Gemini, and a Vite React frontend. Users can register, create projects, invite collaborators, chat in a project room, ask `@ai` for help, and manage project sprints/tickets.
 
 ## Project Structure
 
 ```text
 backend/   Express API, MongoDB models, JWT auth, Redis logout blacklist, Socket.IO, Gemini service
-frontend/  Vite React app, project chat UI, collaborator modal, file tree editor, WebContainer runner
+frontend/  Vite React app, project dashboard, realtime chat, invite flow, work board
 ```
 
 ## Requirements
@@ -94,17 +94,22 @@ npm run preview  # preview the production build
 - Project endpoints are under `/projects`.
 - AI generation is available through `/ai`.
 - Socket.IO uses the same backend URL and requires a valid JWT plus `projectId`.
-- Send `@ai` in a project chat message to ask Gemini to return a JSON response with `text` and optional `fileTree`.
+- Send `@ai` in a project chat message to ask Gemini for a response in the project chat.
 - Invite links use `/join/:inviteCode`; users can also paste an invite code on the dashboard.
-- Sprints and tickets are scoped to a project. Tickets support assignment, priority, and status updates.
+- Sprints and tickets are scoped to a project.
+- Only the project admin, currently the project owner, can create sprints.
+- Tickets support assignment, priority, and status updates.
+- The Work tab includes the project board and a My tasks section for tickets assigned to the logged-in user.
 
 ## Workflow Notes
 
 See [docs/DEVREV_WORKFLOW_UPDATES.md](docs/DEVREV_WORKFLOW_UPDATES.md) for the socket, invite, sprint, ticket, UI, and verification details for the Jira/DevRev-style workflow branch.
 
+See [docs/CHAT_REFRESH_AUTHOR_FIX.md](docs/CHAT_REFRESH_AUTHOR_FIX.md) for the chat refresh issue where saved messages could render as another user's message.
+
 ## Troubleshooting
 
 - If protected routes return `Unauthorized User`, confirm the frontend has a token in local storage and `VITE_API_URL` points to the backend.
 - If project routes hang or fail after login, confirm Redis and MongoDB are running and match `backend/.env`.
-- If WebContainer does not boot in the browser, use the Vite dev server. The Vite config sends the cross-origin isolation headers WebContainer needs.
+- If your own saved chat messages look like another user's messages after refresh, confirm `/users/me` returns a user object with `_id`.
 - If npm install fails with certificate or proxy errors, fix the local npm/proxy configuration first; the app dependencies are managed through the committed lockfiles.

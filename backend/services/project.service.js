@@ -65,6 +65,28 @@ const ensureInviteCode = async (project) => {
     return project
 }
 
+const ensureProjectOwner = async (project) => {
+    if (!project.owner && project.users?.length) {
+        project.owner = project.users[ 0 ]
+        await project.save()
+    }
+
+    return project
+}
+
+const ensureProjectDefaults = async (project) => {
+    await ensureProjectOwner(project)
+    await ensureInviteCode(project)
+
+    return project
+}
+
+const requireProjectOwner = (project, userId) => {
+    if (!project.owner || project.owner.toString() !== userId.toString()) {
+        throw new Error('Only project admin can perform this action')
+    }
+}
+
 export const createProject = async ({
     name, userId
 }) => {
@@ -80,6 +102,7 @@ export const createProject = async ({
         project = await projectModel.create({
             name,
             users: [ userId ],
+            owner: userId,
             inviteCode: await createUniqueInviteCode(),
         });
     } catch (error) {
@@ -102,6 +125,9 @@ export const getAllProjectByUserId = async ({ userId }) => {
     const allUserProjects = await projectModel.find({
         users: userId
     })
+        .populate('owner', 'email')
+
+    await Promise.all(allUserProjects.map(project => ensureProjectDefaults(project)))
 
     return allUserProjects
 }
@@ -165,8 +191,9 @@ export const getProjectById = async ({ projectId, userId }) => {
         throw new Error("Project not found")
     }
 
-    project = await ensureInviteCode(project)
+    project = await ensureProjectDefaults(project)
     await project.populate('users', 'email')
+    await project.populate('owner', 'email')
     await project.populate('tickets.assignee', 'email')
     await project.populate('tickets.createdBy', 'email')
 
@@ -220,7 +247,7 @@ export const joinProjectByInviteCode = async ({ inviteCode, userId }) => {
 
     validateObjectId(userId, 'userId')
 
-    const project = await projectModel.findOneAndUpdate({
+    let project = await projectModel.findOneAndUpdate({
         inviteCode: inviteCode.trim().toUpperCase(),
     }, {
         $addToSet: {
@@ -230,12 +257,15 @@ export const joinProjectByInviteCode = async ({ inviteCode, userId }) => {
         new: true,
     })
         .populate('users', 'email')
+        .populate('owner', 'email')
         .populate('tickets.assignee', 'email')
         .populate('tickets.createdBy', 'email')
 
     if (!project) {
         throw new Error('Invalid invite code')
     }
+
+    project = await ensureProjectDefaults(project)
 
     return project
 }
@@ -250,6 +280,8 @@ export const regenerateInviteCode = async ({ projectId, userId }) => {
 
 export const createSprint = async ({ projectId, userId, name, goal, startDate, endDate }) => {
     const project = await getMemberProject({ projectId, userId })
+    await ensureProjectOwner(project)
+    requireProjectOwner(project, userId)
 
     if (!name || !name.trim()) {
         throw new Error('Sprint name is required')

@@ -5,7 +5,6 @@ import axios from '../config/axios'
 import { disconnectSocket, initializeSocket, receiveMessage, sendMessage } from '../config/socket'
 import Markdown from 'markdown-to-jsx'
 import hljs from 'highlight.js';
-import { getWebContainer } from '../config/webcontainer'
 
 const ticketColumns = [
     { key: 'todo', label: 'To do' },
@@ -60,18 +59,9 @@ const Project = () => {
     const [ copyState, setCopyState ] = useState('')
     const { user } = useContext(UserContext)
     const messageBox = useRef(null)
-    const webContainerRef = useRef(null)
 
     const [ users, setUsers ] = useState([])
     const [ messages, setMessages ] = useState([])
-    const [ fileTree, setFileTree ] = useState({})
-
-    const [ currentFile, setCurrentFile ] = useState(null)
-    const [ openFiles, setOpenFiles ] = useState([])
-
-    const [ webContainer, setWebContainer ] = useState(null)
-    const [ iframeUrl, setIframeUrl ] = useState(null)
-    const [ runProcess, setRunProcess ] = useState(null)
 
     const [ sprintForm, setSprintForm ] = useState({
         name: '',
@@ -87,6 +77,9 @@ const Project = () => {
 
     const projectId = project?._id || initialProjectId
     const inviteLink = project?.inviteCode ? `${window.location.origin}/join/${project.inviteCode}` : ''
+    const currentUserId = user?._id?.toString()
+    const projectOwnerId = typeof project?.owner === 'object' ? project.owner?._id?.toString() : project?.owner?.toString()
+    const isProjectAdmin = Boolean(currentUserId && projectOwnerId && currentUserId === projectOwnerId)
 
     const ticketsByStatus = useMemo(() => {
         const groupedTickets = ticketColumns.reduce((acc, column) => {
@@ -101,6 +94,14 @@ const Project = () => {
         return groupedTickets
     }, [ project?.tickets ])
 
+    const myTasks = useMemo(() => {
+        return project?.tickets?.filter(ticket => {
+            const assigneeId = typeof ticket.assignee === 'object' ? ticket.assignee?._id?.toString() : ticket.assignee?.toString()
+
+            return assigneeId && assigneeId === currentUserId
+        }) || []
+    }, [ currentUserId, project?.tickets ])
+
     const reloadProject = useCallback(async () => {
         if (!projectId) {
             return
@@ -108,7 +109,6 @@ const Project = () => {
 
         const res = await axios.get(`/projects/get-project/${projectId}`)
         setProject(res.data.project)
-        setFileTree(res.data.project.fileTree || {})
         setMessages(res.data.project.messages || [])
     }, [ projectId ])
 
@@ -202,7 +202,7 @@ const Project = () => {
     const createSprint = async (event) => {
         event.preventDefault()
 
-        if (!sprintForm.name.trim()) {
+        if (!isProjectAdmin || !sprintForm.name.trim()) {
             return
         }
 
@@ -250,23 +250,6 @@ const Project = () => {
     }, [ navigate, initialProjectId ])
 
     useEffect(() => {
-        let isMounted = true
-
-        getWebContainer().then(container => {
-            if (isMounted) {
-                webContainerRef.current = container
-                setWebContainer(container)
-            }
-        }).catch(err => {
-            console.log(err)
-        })
-
-        return () => {
-            isMounted = false
-        }
-    }, [])
-
-    useEffect(() => {
         if (!projectId) {
             return
         }
@@ -296,16 +279,7 @@ const Project = () => {
         const unsubscribeReady = receiveMessage('project-message-ready', () => {
             setSocketStatus('connected')
         })
-        const unsubscribeMessage = receiveMessage('project-message', async data => {
-            if (data.sender?._id === 'ai') {
-                const aiMessage = parseAiMessage(data.message)
-
-                if (aiMessage.fileTree) {
-                    await webContainerRef.current?.mount(aiMessage.fileTree)
-                    setFileTree(aiMessage.fileTree || {})
-                }
-            }
-
+        const unsubscribeMessage = receiveMessage('project-message', data => {
             setMessages(prevMessages => {
                 if (prevMessages.some(existingMessage => existingMessage._id === data._id)) {
                     return prevMessages
@@ -338,51 +312,6 @@ const Project = () => {
             top: messageBox.current.scrollHeight,
         })
     }, [ messages ])
-
-    function saveFileTree(ft) {
-        axios.put('/projects/update-file-tree', {
-            projectId: project._id,
-            fileTree: ft
-        }).then(res => {
-            console.log(res.data)
-        }).catch(err => {
-            console.log(err)
-        })
-    }
-
-    const runFileTree = async () => {
-        if (!webContainer || !Object.keys(fileTree).length) {
-            return
-        }
-
-        await webContainer.mount(fileTree)
-        const installProcess = await webContainer.spawn("npm", [ "install" ])
-
-        installProcess.output.pipeTo(new WritableStream({
-            write(chunk) {
-                console.log(chunk)
-            }
-        }))
-
-        if (runProcess) {
-            runProcess.kill()
-        }
-
-        const tempRunProcess = await webContainer.spawn("npm", [ "start" ]);
-
-        tempRunProcess.output.pipeTo(new WritableStream({
-            write(chunk) {
-                console.log(chunk)
-            }
-        }))
-
-        setRunProcess(tempRunProcess)
-
-        webContainer.on('server-ready', (port, url) => {
-            console.log(port, url)
-            setIframeUrl(url)
-        })
-    }
 
     if (!project) {
         return (
@@ -427,7 +356,6 @@ const Project = () => {
                         {[
                             { key: 'chat', label: 'Chat', icon: 'ri-chat-3-line' },
                             { key: 'work', label: 'Work', icon: 'ri-kanban-view-2' },
-                            { key: 'files', label: 'Files', icon: 'ri-code-box-line' },
                         ].map(tab => (
                             <button
                                 key={tab.key}
@@ -500,183 +428,134 @@ const Project = () => {
                     )}
 
                     {activeTab === 'work' && (
-                        <section className='grid gap-4 p-4 xl:grid-cols-[320px_minmax(0,1fr)]'>
-                            <div className='space-y-4'>
-                                <form onSubmit={createSprint} className='rounded-lg border border-slate-200 p-4'>
-                                    <h2 className='mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500'>Sprint</h2>
-                                    <div className='space-y-3'>
-                                        <input
-                                            value={sprintForm.name}
-                                            onChange={(event) => setSprintForm(prev => ({ ...prev, name: event.target.value }))}
-                                            className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm'
-                                            placeholder='Sprint name'
-                                        />
-                                        <textarea
-                                            value={sprintForm.goal}
-                                            onChange={(event) => setSprintForm(prev => ({ ...prev, goal: event.target.value }))}
-                                            className='min-h-20 w-full rounded-md border border-slate-300 px-3 py-2 text-sm'
-                                            placeholder='Goal'
-                                        />
-                                        <button className='w-full rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white'>Create sprint</button>
-                                    </div>
-                                </form>
+                        <section className='space-y-6 p-5 sm:p-6'>
+                            <div className='grid gap-4 xl:grid-cols-2'>
+                                {isProjectAdmin && (
+                                    <form onSubmit={createSprint} className='rounded-lg border border-slate-200 p-5'>
+                                        <h2 className='mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500'>Sprint</h2>
+                                        <div className='space-y-4'>
+                                            <input
+                                                value={sprintForm.name}
+                                                onChange={(event) => setSprintForm(prev => ({ ...prev, name: event.target.value }))}
+                                                className='w-full rounded-md border border-slate-300 px-4 py-3 text-sm'
+                                                placeholder='Sprint name'
+                                            />
+                                            <textarea
+                                                value={sprintForm.goal}
+                                                onChange={(event) => setSprintForm(prev => ({ ...prev, goal: event.target.value }))}
+                                                className='min-h-24 w-full rounded-md border border-slate-300 px-4 py-3 text-sm'
+                                                placeholder='Goal'
+                                            />
+                                            <button className='w-full rounded-md bg-slate-950 px-4 py-3 text-sm font-semibold text-white'>Create sprint</button>
+                                        </div>
+                                    </form>
+                                )}
 
-                                <form onSubmit={createTicket} className='rounded-lg border border-slate-200 p-4'>
-                                    <h2 className='mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500'>Ticket</h2>
-                                    <div className='space-y-3'>
+                                <form onSubmit={createTicket} className='rounded-lg border border-slate-200 p-5'>
+                                    <h2 className='mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500'>Ticket</h2>
+                                    <div className='space-y-4'>
                                         <input
                                             value={ticketForm.title}
                                             onChange={(event) => setTicketForm(prev => ({ ...prev, title: event.target.value }))}
-                                            className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm'
+                                            className='w-full rounded-md border border-slate-300 px-4 py-3 text-sm'
                                             placeholder='Ticket title'
                                         />
                                         <textarea
                                             value={ticketForm.description}
                                             onChange={(event) => setTicketForm(prev => ({ ...prev, description: event.target.value }))}
-                                            className='min-h-20 w-full rounded-md border border-slate-300 px-3 py-2 text-sm'
+                                            className='min-h-24 w-full rounded-md border border-slate-300 px-4 py-3 text-sm'
                                             placeholder='Description'
                                         />
-                                        <select value={ticketForm.assignee} onChange={(event) => setTicketForm(prev => ({ ...prev, assignee: event.target.value }))} className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm'>
+                                        <select value={ticketForm.assignee} onChange={(event) => setTicketForm(prev => ({ ...prev, assignee: event.target.value }))} className='w-full rounded-md border border-slate-300 px-4 py-3 text-sm'>
                                             <option value=''>Unassigned</option>
                                             {project.users?.map(member => (
                                                 <option key={member._id} value={member._id}>{member.email}</option>
                                             ))}
                                         </select>
-                                        <div className='grid grid-cols-2 gap-2'>
-                                            <select value={ticketForm.priority} onChange={(event) => setTicketForm(prev => ({ ...prev, priority: event.target.value }))} className='rounded-md border border-slate-300 px-3 py-2 text-sm'>
+                                        <div className='grid gap-3 sm:grid-cols-2'>
+                                            <select value={ticketForm.priority} onChange={(event) => setTicketForm(prev => ({ ...prev, priority: event.target.value }))} className='rounded-md border border-slate-300 px-4 py-3 text-sm'>
                                                 <option value='low'>Low</option>
                                                 <option value='medium'>Medium</option>
                                                 <option value='high'>High</option>
                                                 <option value='urgent'>Urgent</option>
                                             </select>
-                                            <select value={ticketForm.sprintId} onChange={(event) => setTicketForm(prev => ({ ...prev, sprintId: event.target.value }))} className='rounded-md border border-slate-300 px-3 py-2 text-sm'>
+                                            <select value={ticketForm.sprintId} onChange={(event) => setTicketForm(prev => ({ ...prev, sprintId: event.target.value }))} className='rounded-md border border-slate-300 px-4 py-3 text-sm'>
                                                 <option value=''>Backlog</option>
                                                 {project.sprints?.map(sprint => (
                                                     <option key={sprint._id} value={sprint._id}>{sprint.name}</option>
                                                 ))}
                                             </select>
                                         </div>
-                                        <button className='w-full rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white'>Create ticket</button>
+                                        <button className='w-full rounded-md bg-slate-950 px-4 py-3 text-sm font-semibold text-white'>Create ticket</button>
                                     </div>
                                 </form>
                             </div>
 
-                            <div className='min-w-0 overflow-x-auto'>
-                                <div className='grid min-w-[900px] grid-cols-4 gap-3'>
-                                    {ticketColumns.map(column => (
-                                        <div key={column.key} className='rounded-lg bg-slate-100 p-3'>
-                                            <div className='mb-3 flex items-center justify-between'>
-                                                <h3 className='text-sm font-semibold'>{column.label}</h3>
-                                                <span className='rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500'>{ticketsByStatus[ column.key ]?.length || 0}</span>
+                            <div className='grid gap-5 2xl:grid-cols-[minmax(0,1fr)_360px]'>
+                                <div className='min-w-0 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-4'>
+                                    <div className='grid min-w-[1120px] grid-cols-4 gap-4'>
+                                        {ticketColumns.map(column => (
+                                            <div key={column.key} className='min-h-[540px] rounded-lg bg-slate-100 p-4'>
+                                                <div className='mb-4 flex items-center justify-between'>
+                                                    <h3 className='text-base font-semibold'>{column.label}</h3>
+                                                    <span className='rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500'>{ticketsByStatus[ column.key ]?.length || 0}</span>
+                                                </div>
+                                                <div className='space-y-4'>
+                                                    {ticketsByStatus[ column.key ]?.map(ticket => (
+                                                        <article key={ticket._id} className='rounded-lg border border-slate-200 bg-white p-4 shadow-sm'>
+                                                            <div className='mb-3 flex items-start justify-between gap-3'>
+                                                                <h4 className='text-sm font-semibold leading-6'>{ticket.title}</h4>
+                                                                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[ ticket.priority ]}`}>{ticket.priority}</span>
+                                                            </div>
+                                                            {ticket.description && <p className='mb-4 text-sm leading-6 text-slate-500'>{ticket.description}</p>}
+                                                            <div className='mb-4 text-xs font-medium text-slate-500'>
+                                                                <div>{ticket.assignee?.email || 'Unassigned'}</div>
+                                                            </div>
+                                                            <select
+                                                                value={ticket.status}
+                                                                onChange={(event) => updateTicketStatus(ticket, event.target.value)}
+                                                                className='w-full rounded-md border border-slate-300 px-3 py-2 text-xs'
+                                                            >
+                                                                {ticketColumns.map(option => (
+                                                                    <option key={option.key} value={option.key}>{option.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        </article>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className='space-y-3'>
-                                                {ticketsByStatus[ column.key ]?.map(ticket => (
-                                                    <article key={ticket._id} className='rounded-lg border border-slate-200 bg-white p-3 shadow-sm'>
-                                                        <div className='mb-2 flex items-start justify-between gap-2'>
-                                                            <h4 className='text-sm font-semibold leading-5'>{ticket.title}</h4>
-                                                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityClasses[ ticket.priority ]}`}>{ticket.priority}</span>
-                                                        </div>
-                                                        {ticket.description && <p className='mb-3 text-xs leading-5 text-slate-500'>{ticket.description}</p>}
-                                                        <div className='mb-3 text-xs text-slate-500'>
-                                                            <div>{ticket.assignee?.email || 'Unassigned'}</div>
-                                                        </div>
-                                                        <select
-                                                            value={ticket.status}
-                                                            onChange={(event) => updateTicketStatus(ticket, event.target.value)}
-                                                            className='w-full rounded-md border border-slate-300 px-2 py-1 text-xs'
-                                                        >
-                                                            {ticketColumns.map(option => (
-                                                                <option key={option.key} value={option.key}>{option.label}</option>
-                                                            ))}
-                                                        </select>
-                                                    </article>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        </section>
-                    )}
 
-                    {activeTab === 'files' && (
-                        <section className='grid h-[calc(100vh-230px)] min-h-[520px] grid-cols-1 overflow-hidden lg:grid-cols-[220px_minmax(0,1fr)]'>
-                            <aside className='border-b border-slate-200 bg-slate-50 lg:border-b-0 lg:border-r'>
-                                <div className='flex items-center justify-between border-b border-slate-200 p-3'>
-                                    <h2 className='text-sm font-semibold'>Files</h2>
-                                    <button onClick={runFileTree} className='rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white'>Run</button>
-                                </div>
-                                <div className='max-h-60 overflow-auto lg:max-h-none'>
-                                    {Object.keys(fileTree).map((file) => (
-                                        <button
-                                            key={file}
-                                            onClick={() => {
-                                                setCurrentFile(file)
-                                                setOpenFiles([ ...new Set([ ...openFiles, file ]) ])
-                                            }}
-                                            className={`block w-full truncate px-3 py-2 text-left text-sm hover:bg-slate-200 ${currentFile === file ? 'bg-slate-200 font-semibold' : ''}`}>
-                                            {file}
-                                        </button>))
-                                    }
-                                </div>
-                            </aside>
-
-                            <div className='flex min-w-0 flex-col'>
-                                <div className='flex min-h-11 overflow-x-auto border-b border-slate-200 bg-white'>
-                                    {openFiles.map((file) => (
-                                        <button
-                                            key={file}
-                                            onClick={() => setCurrentFile(file)}
-                                            className={`whitespace-nowrap px-4 py-2 text-sm ${currentFile === file ? 'bg-slate-100 font-semibold' : ''}`}>
-                                            {file}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className='grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_420px]'>
-                                    <div className='min-h-0 overflow-auto bg-slate-950 text-white'>
-                                        {fileTree[ currentFile ] ? (
-                                            <pre className="h-full">
-                                                <code
-                                                    className="block min-h-full outline-none"
-                                                    contentEditable
-                                                    suppressContentEditableWarning
-                                                    onBlur={(e) => {
-                                                        const updatedContent = e.target.innerText;
-                                                        const ft = {
-                                                            ...fileTree,
-                                                            [ currentFile ]: {
-                                                                file: {
-                                                                    contents: updatedContent
-                                                                }
-                                                            }
-                                                        }
-                                                        setFileTree(ft)
-                                                        saveFileTree(ft)
-                                                    }}
-                                                    dangerouslySetInnerHTML={{ __html: hljs.highlight('javascript', fileTree[ currentFile ].file.contents).value }}
-                                                    style={{
-                                                        whiteSpace: 'pre-wrap',
-                                                        padding: '1rem',
-                                                        paddingBottom: '12rem',
-                                                    }}
-                                                />
-                                            </pre>
-                                        ) : (
-                                            <div className='flex h-full items-center justify-center text-sm text-slate-400'>No file selected.</div>
+                                <aside className='rounded-lg border border-slate-200 bg-white p-5 shadow-sm'>
+                                    <div className='mb-4 flex items-center justify-between'>
+                                        <h2 className='text-base font-semibold'>My tasks</h2>
+                                        <span className='rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500'>{myTasks.length}</span>
+                                    </div>
+                                    <div className='space-y-3'>
+                                        {myTasks.length ? myTasks.map(ticket => (
+                                            <article key={ticket._id} className='rounded-lg border border-slate-200 p-4'>
+                                                <div className='mb-2 flex items-start justify-between gap-3'>
+                                                    <h3 className='text-sm font-semibold leading-6'>{ticket.title}</h3>
+                                                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[ ticket.priority ]}`}>{ticket.priority}</span>
+                                                </div>
+                                                <div className='mb-3 text-xs font-medium text-slate-500'>{ticket.status}</div>
+                                                <select
+                                                    value={ticket.status}
+                                                    onChange={(event) => updateTicketStatus(ticket, event.target.value)}
+                                                    className='w-full rounded-md border border-slate-300 px-3 py-2 text-xs'
+                                                >
+                                                    {ticketColumns.map(option => (
+                                                        <option key={option.key} value={option.key}>{option.label}</option>
+                                                    ))}
+                                                </select>
+                                            </article>
+                                        )) : (
+                                            <p className='rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-500'>No assigned tasks.</p>
                                         )}
                                     </div>
-                                    {iframeUrl && webContainer && (
-                                        <div className='flex min-h-80 flex-col border-t border-slate-200 xl:border-l xl:border-t-0'>
-                                            <input
-                                                type="text"
-                                                onChange={(e) => setIframeUrl(e.target.value)}
-                                                value={iframeUrl}
-                                                className="w-full border-b border-slate-200 bg-slate-50 p-2 text-sm"
-                                            />
-                                            <iframe title="Project preview" src={iframeUrl} className="h-full min-h-80 w-full"></iframe>
-                                        </div>
-                                    )}
-                                </div>
+                                </aside>
                             </div>
                         </section>
                     )}
@@ -689,18 +568,6 @@ const Project = () => {
                         <div className='flex gap-2'>
                             <button onClick={copyInviteLink} className='flex-1 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white'>{copyState || 'Copy link'}</button>
                             <button onClick={regenerateInviteCode} className='h-10 w-10 rounded-md border border-slate-300 text-slate-600'><i className="ri-refresh-line"></i></button>
-                        </div>
-                    </section>
-
-                    <section className='rounded-lg border border-slate-200 bg-white p-4 shadow-sm'>
-                        <h2 className='mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500'>Sprints</h2>
-                        <div className='space-y-2'>
-                            {project.sprints?.length ? project.sprints.map(sprint => (
-                                <div key={sprint._id} className='rounded-md border border-slate-200 p-3'>
-                                    <div className='text-sm font-semibold'>{sprint.name}</div>
-                                    {sprint.goal && <div className='mt-1 text-xs text-slate-500'>{sprint.goal}</div>}
-                                </div>
-                            )) : <p className='text-sm text-slate-500'>No sprints yet.</p>}
                         </div>
                     </section>
                 </aside>
