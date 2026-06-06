@@ -1,62 +1,81 @@
-import React, { useState, useEffect } from 'react'
-import axios from "../config/axios"
+import React, { useCallback, useEffect, useState } from 'react'
+import axios from '../config/axios'
 import { useNavigate } from 'react-router-dom'
+import { useUser } from '../context/userContext'
+import { getErrorMessage } from '../utils/getErrorMessage'
 
 const Home = () => {
     const [ isModalOpen, setIsModalOpen ] = useState(false)
     const [ projectName, setProjectName ] = useState('')
     const [ inviteCode, setInviteCode ] = useState('')
     const [ joinError, setJoinError ] = useState('')
+    const [ projectError, setProjectError ] = useState('')
+    const [ createError, setCreateError ] = useState('')
+    const [ isCreating, setIsCreating ] = useState(false)
     const [ projects, setProjects ] = useState([])
-
+    const { user, logout } = useUser()
     const navigate = useNavigate()
 
-    const loadProjects = () => {
-        axios.get('/projects/all').then((res) => {
+    const loadProjects = useCallback(async () => {
+        setProjectError('')
+
+        try {
+            const res = await axios.get('/projects/all')
             setProjects(res.data.projects || [])
-        }).catch(err => {
-            console.log(err)
-        })
-    }
+        } catch (err) {
+            setProjectError(getErrorMessage(err, 'Could not load projects'))
+        }
+    }, [])
 
-    function createProject(e) {
+    async function createProject(e) {
         e.preventDefault()
+        setCreateError('')
+        setIsCreating(true)
 
-        axios.post('/projects/create', {
-            name: projectName,
-        })
-            .then((res) => {
-                setProjects(prevProjects => [ res.data, ...prevProjects ])
-                setProjectName('')
-                setIsModalOpen(false)
-                navigate(`/project/${res.data._id}`, {
-                    state: { project: res.data }
-                })
+        try {
+            const res = await axios.post('/projects/create', {
+                name: projectName,
             })
-            .catch((error) => {
-                console.log(error)
+
+            setProjects(prevProjects => [ res.data, ...prevProjects ])
+            setProjectName('')
+            setIsModalOpen(false)
+            navigate(`/project/${res.data._id}`, {
+                state: { project: res.data }
             })
+        } catch (err) {
+            setCreateError(getErrorMessage(err, 'Could not create project'))
+        } finally {
+            setIsCreating(false)
+        }
     }
 
-    const joinProject = (event) => {
+    const joinProject = async (event) => {
         event.preventDefault()
         setJoinError('')
 
-        axios.post('/projects/join', {
-            inviteCode
-        }).then(res => {
+        try {
+            const res = await axios.post('/projects/join', {
+                inviteCode
+            })
+
             setInviteCode('')
             navigate(`/project/${res.data.project._id}`, {
                 state: { project: res.data.project }
             })
-        }).catch(err => {
-            setJoinError(err.response?.data?.error || 'Could not join project')
-        })
+        } catch (err) {
+            setJoinError(getErrorMessage(err, 'Could not join project'))
+        }
+    }
+
+    const handleLogout = async () => {
+        await logout()
+        navigate('/login', { replace: true })
     }
 
     useEffect(() => {
         loadProjects()
-    }, [])
+    }, [ loadProjects ])
 
     return (
         <main className='min-h-screen bg-slate-100 text-slate-950'>
@@ -66,12 +85,23 @@ const Home = () => {
                         <p className='text-sm font-semibold uppercase tracking-wide text-slate-500'>Workspace</p>
                         <h1 className='mt-1 text-3xl font-semibold tracking-tight'>Projects</h1>
                     </div>
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className='inline-flex w-fit items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800'>
-                        <i className="ri-add-line"></i>
-                        New project
-                    </button>
+                    <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
+                        <span className='max-w-xs truncate rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600'>
+                            {user?.email}
+                        </span>
+                        <button
+                            onClick={handleLogout}
+                            className='inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50'>
+                            <i className="ri-logout-box-r-line"></i>
+                            Logout
+                        </button>
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className='inline-flex w-fit items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800'>
+                            <i className="ri-add-line"></i>
+                            New project
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -81,6 +111,9 @@ const Home = () => {
                         <h2 className='text-lg font-semibold'>Active projects</h2>
                         <span className='text-sm text-slate-500'>{projects.length} total</span>
                     </div>
+                    {projectError && (
+                        <p className='mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700'>{projectError}</p>
+                    )}
                     <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-3'>
                         {projects.map((project) => (
                             <button key={project._id}
@@ -152,8 +185,11 @@ const Home = () => {
                             </div>
                             <div className="flex justify-end gap-2">
                                 <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => setIsModalOpen(false)}>Cancel</button>
-                                <button type="submit" className="rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Create</button>
+                                <button type="submit" disabled={isCreating} className="rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+                                    {isCreating ? 'Creating...' : 'Create'}
+                                </button>
                             </div>
+                            {createError && <p className='text-sm text-red-600'>{createError}</p>}
                         </form>
                     </div>
                 </div>

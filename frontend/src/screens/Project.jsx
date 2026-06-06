@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useContext, useRef, useMemo, useCallback } from 'react'
-import { UserContext } from '../context/user.context'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useUser } from '../context/userContext'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import axios from '../config/axios'
 import { disconnectSocket, initializeSocket, receiveMessage, sendMessage } from '../config/socket'
 import Markdown from 'markdown-to-jsx'
-import hljs from 'highlight.js';
+import hljs from 'highlight.js'
+import { getErrorMessage } from '../utils/getErrorMessage'
 
 const ticketColumns = [
     { key: 'todo', label: 'To do' },
@@ -56,8 +57,9 @@ const Project = () => {
     const [ message, setMessage ] = useState('')
     const [ socketStatus, setSocketStatus ] = useState('connecting')
     const [ socketError, setSocketError ] = useState('')
+    const [ actionError, setActionError ] = useState('')
     const [ copyState, setCopyState ] = useState('')
-    const { user } = useContext(UserContext)
+    const { user, logout } = useUser()
     const messageBox = useRef(null)
 
     const [ users, setUsers ] = useState([])
@@ -114,15 +116,15 @@ const Project = () => {
 
     const handleUserClick = (id) => {
         setSelectedUserId(prevSelectedUserId => {
-            const newSelectedUserId = new Set(prevSelectedUserId);
+            const newSelectedUserId = new Set(prevSelectedUserId)
             if (newSelectedUserId.has(id)) {
-                newSelectedUserId.delete(id);
+                newSelectedUserId.delete(id)
             } else {
-                newSelectedUserId.add(id);
+                newSelectedUserId.add(id)
             }
 
-            return newSelectedUserId;
-        });
+            return newSelectedUserId
+        })
     }
 
     async function addCollaborators() {
@@ -131,7 +133,7 @@ const Project = () => {
         }
 
         try {
-            await axios.put("/projects/add-user", {
+            await axios.put('/projects/add-user', {
                 projectId: project._id,
                 users: Array.from(selectedUserId)
             })
@@ -139,7 +141,7 @@ const Project = () => {
             setSelectedUserId(new Set())
             setIsModalOpen(false)
         } catch (err) {
-            console.log(err)
+            setActionError(getErrorMessage(err, 'Could not add collaborators'))
         }
     }
 
@@ -206,12 +208,17 @@ const Project = () => {
             return
         }
 
-        await axios.post(`/projects/${projectId}/sprints`, sprintForm)
-        setSprintForm({
-            name: '',
-            goal: '',
-        })
-        await reloadProject()
+        try {
+            setActionError('')
+            await axios.post(`/projects/${projectId}/sprints`, sprintForm)
+            setSprintForm({
+                name: '',
+                goal: '',
+            })
+            await reloadProject()
+        } catch (err) {
+            setActionError(getErrorMessage(err, 'Could not create sprint'))
+        }
     }
 
     const createTicket = async (event) => {
@@ -221,26 +228,42 @@ const Project = () => {
             return
         }
 
-        await axios.post(`/projects/${projectId}/tickets`, {
-            ...ticketForm,
-            assignee: ticketForm.assignee || null,
-            sprintId: ticketForm.sprintId || null,
-        })
-        setTicketForm({
-            title: '',
-            description: '',
-            assignee: '',
-            priority: 'medium',
-            sprintId: '',
-        })
-        await reloadProject()
+        try {
+            setActionError('')
+            await axios.post(`/projects/${projectId}/tickets`, {
+                ...ticketForm,
+                assignee: ticketForm.assignee || null,
+                sprintId: ticketForm.sprintId || null,
+            })
+            setTicketForm({
+                title: '',
+                description: '',
+                assignee: '',
+                priority: 'medium',
+                sprintId: '',
+            })
+            await reloadProject()
+        } catch (err) {
+            setActionError(getErrorMessage(err, 'Could not create ticket'))
+        }
     }
 
     const updateTicketStatus = async (ticket, status) => {
-        await axios.put(`/projects/${projectId}/tickets/${ticket._id}`, {
-            status
-        })
-        await reloadProject()
+        try {
+            setActionError('')
+            await axios.put(`/projects/${projectId}/tickets/${ticket._id}`, {
+                status
+            })
+            await reloadProject()
+        } catch (err) {
+            setActionError(getErrorMessage(err, 'Could not update ticket'))
+        }
+    }
+
+    const handleLogout = async () => {
+        disconnectSocket()
+        await logout()
+        navigate('/login', { replace: true })
     }
 
     useEffect(() => {
@@ -254,15 +277,14 @@ const Project = () => {
             return
         }
 
-        reloadProject().catch(err => {
-            console.log(err)
+        reloadProject().catch(() => {
             navigate('/')
         })
 
         axios.get('/users/all').then((res) => {
             setUsers(res.data.users || [])
         }).catch((err) => {
-            console.error('Auth error:', err.response?.data || err.message)
+            setActionError(getErrorMessage(err, 'Could not load users'))
         })
     }, [ navigate, projectId, reloadProject ])
 
@@ -346,12 +368,19 @@ const Project = () => {
                             <i className="ri-group-line"></i>
                             Members
                         </button>
+                        <button onClick={handleLogout} className='inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50'>
+                            <i className="ri-logout-box-r-line"></i>
+                            Logout
+                        </button>
                     </div>
                 </div>
             </header>
 
             <section className='mx-auto grid max-w-7xl gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px]'>
                 <div className='min-w-0 rounded-lg border border-slate-200 bg-white shadow-sm'>
+                    {actionError && (
+                        <div className='m-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700'>{actionError}</div>
+                    )}
                     <div className='flex overflow-x-auto border-b border-slate-200 px-3'>
                         {[
                             { key: 'chat', label: 'Chat', icon: 'ri-chat-3-line' },

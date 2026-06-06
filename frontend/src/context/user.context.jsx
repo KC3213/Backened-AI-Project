@@ -1,42 +1,63 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import axios from '../config/axios'
+import { UserContext } from './userContext'
 
-// Create the UserContext
-export const UserContext = createContext();
+const tokenKey = 'token'
 
-// Create a provider component
 export const UserProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // NEW
+  const [ user, setUser ] = useState(null)
+  const [ loading, setLoading ] = useState(true)
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(tokenKey)
+    setUser(null)
+  }, [])
+
+  const startSession = useCallback(({ user: sessionUser, token }) => {
+    localStorage.setItem(tokenKey, token)
+    setUser(sessionUser)
+  }, [])
+
+  const logout = useCallback(async () => {
+    try {
+      if (localStorage.getItem(tokenKey)) {
+        await axios.get('/users/logout')
+      }
+    } finally {
+      clearSession()
+    }
+  }, [ clearSession ])
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(tokenKey)
+
     if (!token) {
-      setLoading(false);
-      return;
+      setLoading(false)
+      return
     }
-    const API = import.meta.env.VITE_API_URL;
-    axios.get(`${API}/users/me`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    .then((res) => {
-      setUser(res.data.user);
-    })
-    .catch(() => {
-      localStorage.removeItem('token');
-    })
-    .finally(() => {
-      setLoading(false); // Done loading either way
-    });
-  }, []);
+
+    axios.get('/users/me')
+      .then((res) => {
+        setUser(res.data.user)
+      })
+      .catch(() => {
+        clearSession()
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }, [ clearSession ])
+
+  const value = useMemo(() => ({
+    user,
+    loading,
+    startSession,
+    logout,
+  }), [ loading, logout, startSession, user ])
 
   return (
-    <UserContext.Provider value={{ user, setUser, loading }}>
+    <UserContext.Provider value={value}>
       {children}
     </UserContext.Provider>
-  );
-};
-
-
-// Custom hook to use the context
-export const useUser = () => useContext(UserContext);
+  )
+}

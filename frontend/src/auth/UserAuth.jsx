@@ -1,19 +1,23 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useUser } from '../context/user.context';
+import React from 'react'
+import { Navigate } from 'react-router-dom'
+import { useUser } from '../context/userContext'
 
 const UserAuth = ({ children }) => {
-  const { user, loading } = useUser(); // use shared context
+  const { user, loading } = useUser()
 
   if (loading) {
-    return <div>Loading...</div>; // wait for /users/me check
+    return (
+      <main className='flex min-h-screen items-center justify-center bg-slate-100 text-sm font-medium text-slate-500'>
+        Loading...
+      </main>
+    )
   }
 
   if (!user) {
-    return <Navigate to="/login" />; // redirect if not logged in
+    return <Navigate to='/login' replace />
   }
 
-  return children; // ✅ show protected content
-};
+  return children
+}
 
-export default UserAuth;
+export default UserAuth

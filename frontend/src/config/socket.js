@@ -30,9 +30,11 @@ export const receiveMessage = (eventName, cb) => {
         return () => {};
     }
 
-    socketInstance.on(eventName, cb);
+    const currentSocket = socketInstance;
 
-    return () => socketInstance.off(eventName, cb);
+    currentSocket.on(eventName, cb);
+
+    return () => currentSocket.off(eventName, cb);
 }
 
 export const sendMessage = (eventName, data) => {
