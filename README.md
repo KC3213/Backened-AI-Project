@@ -1,6 +1,6 @@
 # Backend AI Project
 
-Collaborative AI coding workspace built with an Express API, MongoDB, Redis, Socket.IO, Google Gemini, and a Vite React frontend. Users can register, create projects, invite collaborators, chat in a project room, ask `@ai` for code, edit the generated file tree, and run generated projects in the browser with WebContainer.
+Collaborative AI coding workspace built with an Express API, MongoDB, Redis, Socket.IO, Google Gemini, and a Vite React frontend. Users can register, create projects, invite collaborators, chat in a project room, ask `@ai` for code, edit the generated file tree, run generated projects in the browser with WebContainer, and manage project sprints/tickets.
 
 ## Project Structure
 
@@ -95,6 +95,12 @@ npm run preview  # preview the production build
 - AI generation is available through `/ai`.
 - Socket.IO uses the same backend URL and requires a valid JWT plus `projectId`.
 - Send `@ai` in a project chat message to ask Gemini to return a JSON response with `text` and optional `fileTree`.
+- Invite links use `/join/:inviteCode`; users can also paste an invite code on the dashboard.
+- Sprints and tickets are scoped to a project. Tickets support assignment, priority, and status updates.
+
+## Workflow Notes
+
+See [docs/DEVREV_WORKFLOW_UPDATES.md](docs/DEVREV_WORKFLOW_UPDATES.md) for the socket, invite, sprint, ticket, UI, and verification details for the Jira/DevRev-style workflow branch.
 
 ## Troubleshooting
 

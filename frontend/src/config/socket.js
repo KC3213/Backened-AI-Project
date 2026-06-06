@@ -15,7 +15,10 @@ export const initializeSocket = (projectId) => {
         },
         query: {
             projectId
-        }
+        },
+        transports: [ 'websocket', 'polling' ],
+        reconnectionAttempts: 5,
+        reconnectionDelay: 500,
     });
 
     return socketInstance;
@@ -34,8 +37,15 @@ export const receiveMessage = (eventName, cb) => {
 
 export const sendMessage = (eventName, data) => {
     if (!socketInstance) {
-        return;
+        throw new Error('Socket is not connected');
     }
 
     socketInstance.emit(eventName, data);
+}
+
+export const disconnectSocket = () => {
+    if (socketInstance) {
+        socketInstance.disconnect();
+        socketInstance = null;
+    }
 }

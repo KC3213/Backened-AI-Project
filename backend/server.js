@@ -5,6 +5,8 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import projectModel from './models/project.model.js';
+import userModel from './models/user.model.js';
+import { addMessageToProject } from './services/project.service.js';
 import { generateResult } from './services/ai.service.js';
 
 const port = process.env.PORT || 3000;
@@ -26,30 +28,40 @@ io.use(async (socket, next) => {
         const token = socket.handshake.auth?.token || socket.handshake.headers.authorization?.split(' ')[ 1 ];
         const projectId = socket.handshake.query.projectId;
 
-        if (!mongoose.Types.ObjectId.isValid(projectId)) {
-            return next(new Error('Invalid projectId'));
-        }
-
-
-        socket.project = await projectModel.findById(projectId);
-
-        if (!socket.project) {
-            return next(new Error('Project not found'));
-        }
-
-
         if (!token) {
             return next(new Error('Authentication error'))
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        if (!decoded) {
+        if (!decoded?.email) {
             return next(new Error('Authentication error'))
         }
 
+        const user = await userModel.findOne({ email: decoded.email });
 
-        socket.user = decoded;
+        if (!user) {
+            return next(new Error('Authentication error'))
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(projectId)) {
+            return next(new Error('Invalid projectId'));
+        }
+
+
+        socket.project = await projectModel.findOne({
+            _id: projectId,
+            users: user._id
+        });
+
+        if (!socket.project) {
+            return next(new Error('Project not found'));
+        }
+
+        socket.user = {
+            _id: user._id.toString(),
+            email: user.email,
+        };
 
         next();
 
@@ -64,44 +76,79 @@ io.on('connection', socket => {
     socket.roomId = socket.project._id.toString()
 
 
-    console.log('a user connected');
+    console.log(`socket connected ${socket.user.email} -> ${socket.roomId}`);
 
 
 
     socket.join(socket.roomId);
 
+    socket.emit('project-message-ready', {
+        projectId: socket.roomId,
+    });
+
     socket.on('project-message', async data => {
+        try {
+            const message = data?.message?.trim();
 
-        const message = data.message;
+            if (!message) {
+                socket.emit('project-message-error', {
+                    error: 'Message is required'
+                });
+                return;
+            }
 
-        const aiIsPresentInMessage = message.includes('@ai');
-        socket.broadcast.to(socket.roomId).emit('project-message', data)
+            const savedMessage = await addMessageToProject({
+                projectId: socket.roomId,
+                userId: socket.user._id,
+                sender: socket.user,
+                message,
+            });
 
-        if (aiIsPresentInMessage) {
+            io.to(socket.roomId).emit('project-message', savedMessage);
 
+            const aiIsPresentInMessage = message.includes('@ai');
 
-            const prompt = message.replace('@ai', '');
+            if (aiIsPresentInMessage) {
+                const prompt = message.replace('@ai', '').trim();
+                let result;
 
-            const result = await generateResult(prompt);
-
-
-            io.to(socket.roomId).emit('project-message', {
-                message: result,
-                sender: {
-                    _id: 'ai',
-                    email: 'AI'
+                try {
+                    result = await generateResult(prompt);
+                } catch (error) {
+                    result = JSON.stringify({
+                        text: `AI failed to respond: ${error.message}`
+                    });
                 }
-            })
 
+                const aiMessage = await projectModel.findByIdAndUpdate(socket.roomId, {
+                    $push: {
+                        messages: {
+                            message: result,
+                            sender: {
+                                _id: 'ai',
+                                email: 'AI'
+                            }
+                        }
+                    }
+                }, {
+                    new: true
+                });
 
-            return
+                io.to(socket.roomId).emit('project-message', aiMessage.messages[ aiMessage.messages.length - 1 ]);
+            }
+        } catch (error) {
+            console.log(error);
+            socket.emit('project-message-error', {
+                error: error.message
+            });
         }
+
 
 
     })
 
     socket.on('disconnect', () => {
-        console.log('user disconnected');
+        console.log(`socket disconnected ${socket.user.email} -> ${socket.roomId}`);
         socket.leave(socket.roomId)
     });
 });

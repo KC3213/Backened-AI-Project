@@ -25,9 +25,37 @@ router.put('/add-user',
     projectController.addUserToProject
 )
 
+router.post('/join',
+    authMiddleWare.authUser,
+    body('inviteCode').isString().isLength({ min: 4 }).withMessage('Invite code is required'),
+    projectController.joinProjectByInviteCode
+)
+
 router.get('/get-project/:projectId',
     authMiddleWare.authUser,
     projectController.getProjectById
+)
+
+router.post('/:projectId/regenerate-invite',
+    authMiddleWare.authUser,
+    projectController.regenerateInviteCode
+)
+
+router.post('/:projectId/sprints',
+    authMiddleWare.authUser,
+    body('name').isString().notEmpty().withMessage('Sprint name is required'),
+    projectController.createSprint
+)
+
+router.post('/:projectId/tickets',
+    authMiddleWare.authUser,
+    body('title').isString().notEmpty().withMessage('Ticket title is required'),
+    projectController.createTicket
+)
+
+router.put('/:projectId/tickets/:ticketId',
+    authMiddleWare.authUser,
+    projectController.updateTicket
 )
 
 router.put('/update-file-tree',

@@ -91,8 +91,14 @@ export const getProjectById = async (req, res) => {
     const { projectId } = req.params;
 
     try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        })
 
-        const project = await projectService.getProjectById({ projectId });
+        const project = await projectService.getProjectById({
+            projectId,
+            userId: loggedInUser._id
+        });
 
         return res.status(200).json({
             project
@@ -103,6 +109,128 @@ export const getProjectById = async (req, res) => {
         res.status(400).json({ error: err.message })
     }
 
+}
+
+export const joinProjectByInviteCode = async (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        })
+
+        const project = await projectService.joinProjectByInviteCode({
+            inviteCode: req.body.inviteCode,
+            userId: loggedInUser._id
+        })
+
+        return res.status(200).json({
+            project
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(400).json({ error: err.message })
+    }
+}
+
+export const regenerateInviteCode = async (req, res) => {
+    try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        })
+
+        const inviteCode = await projectService.regenerateInviteCode({
+            projectId: req.params.projectId,
+            userId: loggedInUser._id
+        })
+
+        return res.status(200).json({
+            inviteCode
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(400).json({ error: err.message })
+    }
+}
+
+export const createSprint = async (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        })
+
+        const sprint = await projectService.createSprint({
+            projectId: req.params.projectId,
+            userId: loggedInUser._id,
+            ...req.body
+        })
+
+        return res.status(201).json({
+            sprint
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(400).json({ error: err.message })
+    }
+}
+
+export const createTicket = async (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        })
+
+        const ticket = await projectService.createTicket({
+            projectId: req.params.projectId,
+            userId: loggedInUser._id,
+            ...req.body
+        })
+
+        return res.status(201).json({
+            ticket
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(400).json({ error: err.message })
+    }
+}
+
+export const updateTicket = async (req, res) => {
+    try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        })
+
+        const ticket = await projectService.updateTicket({
+            projectId: req.params.projectId,
+            ticketId: req.params.ticketId,
+            userId: loggedInUser._id,
+            updates: req.body
+        })
+
+        return res.status(200).json({
+            ticket
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(400).json({ error: err.message })
+    }
 }
 
 export const updateFileTree = async (req, res) => {
