@@ -15,6 +15,15 @@ const messageSchema = new mongoose.Schema({
             type: String,
             required: true,
         },
+        name: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        avatar: {
+            type: Object,
+            default: null,
+        },
     },
 }, {
     timestamps: true,
@@ -38,6 +47,49 @@ const sprintSchema = new mongoose.Schema({
     },
     startDate: Date,
     endDate: Date,
+}, {
+    timestamps: true,
+});
+
+const submissionSchema = new mongoose.Schema({
+    type: {
+        type: String,
+        enum: [ 'link', 'file' ],
+        required: true,
+    },
+    note: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+    url: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+    fileName: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+    fileType: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+    fileSize: {
+        type: Number,
+        default: 0,
+    },
+    fileData: {
+        type: String,
+        default: '',
+    },
+    submittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user',
+        required: true,
+    },
 }, {
     timestamps: true,
 });
@@ -76,6 +128,10 @@ const ticketSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'user',
         required: true,
+    },
+    submissions: {
+        type: [ submissionSchema ],
+        default: [],
     },
 }, {
     timestamps: true,

@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { useUser } from '../context/userContext'
 import { getErrorMessage } from '../utils/getErrorMessage'
 import WorkspaceBackdrop from '../components/WorkspaceBackdrop'
+import UserAvatar from '../components/UserAvatar'
+import { getDisplayName } from '../utils/avatar'
 
 const pendingTaskColumns = [
     { key: 'todo', label: 'To do' },
@@ -24,12 +26,6 @@ const getMemberId = (member) => {
     }
 
     return typeof member === 'object' ? member._id?.toString() : member.toString()
-}
-
-const getInitials = (email = '') => {
-    const username = email.split('@')[ 0 ] || ''
-
-    return username.slice(0, 2).toUpperCase() || 'U'
 }
 
 const getProjectRole = (project, currentUserId) => {
@@ -174,7 +170,7 @@ const Home = () => {
                         <h1 className='font-display text-xl leading-6 text-[#2c2c2a]'>Projects</h1>
                     </div>
                     <div className='flex flex-wrap items-center gap-2'>
-                        <span className='max-w-[220px] truncate text-xs font-medium text-[#888780]'>{user?.email}</span>
+                        <span className='max-w-[220px] truncate text-xs font-medium text-[#888780]'>{getDisplayName(user)}</span>
                         <button
                             onClick={handleLogout}
                             className='inline-flex h-9 items-center gap-2 rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-white px-3 text-sm font-medium text-[#2c2c2a] hover:bg-[#f8f8f5]'>
@@ -268,12 +264,11 @@ const Home = () => {
                 <aside className='order-1 space-y-3 lg:w-[260px]'>
                     <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
                         <div className='mb-4 flex items-center gap-3'>
-                            <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2c2c2a] text-sm font-semibold text-[#f0efe9]'>
-                                {getInitials(user?.email)}
-                            </div>
+                            <UserAvatar user={user} size='lg' />
                             <div className='min-w-0'>
                                 <h2 className='text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Account</h2>
-                                <p className='truncate text-sm font-medium text-[#2c2c2a]'>{user?.email}</p>
+                                <p className='truncate text-sm font-medium text-[#2c2c2a]'>{getDisplayName(user)}</p>
+                                <p className='truncate text-[11px] font-medium text-[#888780]'>{user?.email}</p>
                             </div>
                         </div>
                         <div className='space-y-2 rounded-[10px] bg-[#f8f8f5] p-3 text-[12px] font-medium text-[#5f5e5a]'>

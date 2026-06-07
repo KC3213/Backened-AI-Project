@@ -1,6 +1,15 @@
 import projectModel from '../models/project.model.js';
 import mongoose from 'mongoose';
 
+const userSelectFields = 'name email avatar'
+const allowedSubmissionMimeTypes = new Set([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+])
+const allowedSubmissionExtensions = new Set([ 'pdf', 'doc', 'docx' ])
+const maxSubmissionFileSize = 4 * 1024 * 1024
+
 const generateInviteCode = () => {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
@@ -97,6 +106,47 @@ const requireProjectOwner = (project, userId) => {
     }
 }
 
+const getFileExtension = (fileName = '') => {
+    return fileName.split('.').pop()?.toLowerCase() || ''
+}
+
+const validateSubmissionLink = (url) => {
+    try {
+        const parsedUrl = new URL(url)
+
+        if (![ 'http:', 'https:' ].includes(parsedUrl.protocol)) {
+            throw new Error('Only http and https links are supported')
+        }
+
+        return parsedUrl.toString()
+    } catch {
+        throw new Error('Submission link must be a valid URL')
+    }
+}
+
+const validateSubmissionFile = (file = {}) => {
+    const extension = getFileExtension(file.name)
+
+    if (!file.name || !file.dataUrl) {
+        throw new Error('Submission file is required')
+    }
+
+    if (!allowedSubmissionExtensions.has(extension) || (file.type && !allowedSubmissionMimeTypes.has(file.type))) {
+        throw new Error('Only PDF, DOC and DOCX files are supported')
+    }
+
+    if (!file.size || file.size > maxSubmissionFileSize) {
+        throw new Error('Submission file must be 4MB or smaller')
+    }
+
+    return {
+        fileName: file.name.trim(),
+        fileType: file.type || extension,
+        fileSize: file.size,
+        fileData: file.dataUrl,
+    }
+}
+
 const serializeProjectForUser = (project, userId) => {
     const serializedProject = typeof project.toObject === 'function'
         ? project.toObject()
@@ -150,9 +200,10 @@ export const getAllProjectByUserId = async ({ userId }) => {
 
     await Promise.all(allUserProjects.map(project => ensureProjectDefaults(project)))
     await projectModel.populate(allUserProjects, [
-        { path: 'owner', select: 'email' },
-        { path: 'tickets.assignee', select: 'email' },
-        { path: 'tickets.createdBy', select: 'email' },
+        { path: 'owner', select: userSelectFields },
+        { path: 'tickets.assignee', select: userSelectFields },
+        { path: 'tickets.createdBy', select: userSelectFields },
+        { path: 'tickets.submissions.submittedBy', select: userSelectFields },
     ])
 
     return allUserProjects.map(project => serializeProjectForUser(project, userId))
@@ -196,10 +247,11 @@ export const addUsersToProject = async ({ projectId, users, userId }) => {
     }, {
         new: true
     })
-        .populate('users', 'email')
-        .populate('owner', 'email')
-        .populate('tickets.assignee', 'email')
-        .populate('tickets.createdBy', 'email')
+        .populate('users', userSelectFields)
+        .populate('owner', userSelectFields)
+        .populate('tickets.assignee', userSelectFields)
+        .populate('tickets.createdBy', userSelectFields)
+        .populate('tickets.submissions.submittedBy', userSelectFields)
 
     return serializeProjectForUser(updatedProject, userId)
 
@@ -224,10 +276,11 @@ export const getProjectById = async ({ projectId, userId }) => {
     }
 
     project = await ensureProjectDefaults(project)
-    await project.populate('users', 'email')
-    await project.populate('owner', 'email')
-    await project.populate('tickets.assignee', 'email')
-    await project.populate('tickets.createdBy', 'email')
+    await project.populate('users', userSelectFields)
+    await project.populate('owner', userSelectFields)
+    await project.populate('tickets.assignee', userSelectFields)
+    await project.populate('tickets.createdBy', userSelectFields)
+    await project.populate('tickets.submissions.submittedBy', userSelectFields)
 
     return serializeProjectForUser(project, userId);
 }
@@ -288,10 +341,11 @@ export const joinProjectByInviteCode = async ({ inviteCode, userId }) => {
     }, {
         new: true,
     })
-        .populate('users', 'email')
-        .populate('owner', 'email')
-        .populate('tickets.assignee', 'email')
-        .populate('tickets.createdBy', 'email')
+        .populate('users', userSelectFields)
+        .populate('owner', userSelectFields)
+        .populate('tickets.assignee', userSelectFields)
+        .populate('tickets.createdBy', userSelectFields)
+        .populate('tickets.submissions.submittedBy', userSelectFields)
 
     if (!project) {
         throw new Error('Invalid invite code')
@@ -394,4 +448,41 @@ export const updateTicket = async ({ projectId, userId, ticketId, updates }) => 
     await project.save()
 
     return ticket
+}
+
+export const createTicketSubmission = async ({ projectId, userId, ticketId, type, url, note, file }) => {
+    const project = await getMemberProject({ projectId, userId })
+    const ticket = project.tickets.id(ticketId)
+
+    if (!ticket) {
+        throw new Error('Ticket not found')
+    }
+
+    if (!ticket.assignee || ticket.assignee.toString() !== userId.toString()) {
+        throw new Error('Only the assigned user can submit work for this ticket')
+    }
+
+    const normalizedType = type === 'file' ? 'file' : 'link'
+    const submission = {
+        type: normalizedType,
+        note: note?.trim() || '',
+        submittedBy: userId,
+    }
+
+    if (normalizedType === 'link') {
+        submission.url = validateSubmissionLink(url)
+    } else {
+        Object.assign(submission, validateSubmissionFile(file))
+    }
+
+    ticket.submissions.push(submission)
+
+    if (ticket.status !== 'done') {
+        ticket.status = 'review'
+    }
+
+    await project.save()
+    await project.populate('tickets.submissions.submittedBy', userSelectFields)
+
+    return ticket.submissions[ ticket.submissions.length - 1 ]
 }

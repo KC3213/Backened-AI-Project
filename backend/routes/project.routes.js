@@ -58,6 +58,13 @@ router.put('/:projectId/tickets/:ticketId',
     projectController.updateTicket
 )
 
+router.post('/:projectId/tickets/:ticketId/submissions',
+    authMiddleWare.authUser,
+    body('type').isIn([ 'link', 'file' ]).withMessage('Submission type must be link or file'),
+    body('note').optional().isString().withMessage('Submission note must be a string'),
+    projectController.createTicketSubmission
+)
+
 router.put('/update-file-tree',
     authMiddleWare.authUser,
     body('projectId').isString().withMessage('Project ID is required'),

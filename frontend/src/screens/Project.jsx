@@ -7,6 +7,8 @@ import Markdown from 'markdown-to-jsx'
 import hljs from 'highlight.js'
 import { getErrorMessage } from '../utils/getErrorMessage'
 import WorkspaceBackdrop from '../components/WorkspaceBackdrop'
+import UserAvatar from '../components/UserAvatar'
+import { getDisplayName } from '../utils/avatar'
 
 const ticketColumns = [
     { key: 'todo', label: 'To do' },
@@ -27,6 +29,13 @@ const statusLabels = ticketColumns.reduce((acc, column) => {
     return acc
 }, {})
 
+const allowedSubmissionMimeTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]
+const maxSubmissionFileSize = 4 * 1024 * 1024
+
 const getMemberId = (member) => {
     if (!member) {
         return ''
@@ -35,10 +44,48 @@ const getMemberId = (member) => {
     return typeof member === 'object' ? member._id?.toString() : member.toString()
 }
 
-const getInitials = (email = '') => {
-    const username = email.split('@')[ 0 ] || ''
+const getSubmissionFormDefaults = () => ({
+    type: 'link',
+    url: '',
+    note: '',
+    file: null,
+})
 
-    return username.slice(0, 2).toUpperCase() || 'U'
+const getFileExtension = (fileName = '') => fileName.split('.').pop()?.toLowerCase() || ''
+
+const isSupportedSubmissionFile = (file) => {
+    return Boolean(file && [ 'pdf', 'doc', 'docx' ].includes(getFileExtension(file.name)) && (!file.type || allowedSubmissionMimeTypes.includes(file.type)))
+}
+
+const formatFileSize = (size = 0) => {
+    if (size < 1024 * 1024) {
+        return `${Math.max(Math.round(size / 1024), 1)} KB`
+    }
+
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const readFileAsDataUrl = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = () => reject(new Error('Could not read file'))
+        reader.readAsDataURL(file)
+    })
+}
+
+const formatSubmissionDate = (date) => {
+    if (!date) {
+        return ''
+    }
+
+    return new Date(date).toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    })
 }
 
 const getDayLabel = (date) => {
@@ -138,6 +185,8 @@ const Project = () => {
         priority: 'medium',
         sprintId: '',
     })
+    const [ submissionForms, setSubmissionForms ] = useState({})
+    const [ submittingTicketId, setSubmittingTicketId ] = useState('')
 
     const projectId = project?._id || initialProjectId
     const inviteLink = project?.inviteCode ? `${window.location.origin}/join/${project.inviteCode}` : ''
@@ -325,6 +374,89 @@ const Project = () => {
             await reloadProject()
         } catch (err) {
             setActionError(getErrorMessage(err, 'Could not update ticket'))
+        }
+    }
+
+    const updateSubmissionForm = (ticketId, updates) => {
+        setSubmissionForms(prevForms => ({
+            ...prevForms,
+            [ ticketId ]: {
+                ...getSubmissionFormDefaults(),
+                ...(prevForms[ ticketId ] || {}),
+                ...updates,
+            }
+        }))
+    }
+
+    const handleSubmissionFile = (ticketId, file) => {
+        if (!file) {
+            updateSubmissionForm(ticketId, { file: null })
+            return
+        }
+
+        if (!isSupportedSubmissionFile(file)) {
+            setActionError('Only PDF, DOC and DOCX files are supported')
+            updateSubmissionForm(ticketId, { file: null })
+            return
+        }
+
+        if (file.size > maxSubmissionFileSize) {
+            setActionError('Submission file must be 4MB or smaller')
+            updateSubmissionForm(ticketId, { file: null })
+            return
+        }
+
+        setActionError('')
+        updateSubmissionForm(ticketId, { file })
+    }
+
+    const submitTicketWork = async (event, ticket) => {
+        event.preventDefault()
+
+        const form = {
+            ...getSubmissionFormDefaults(),
+            ...(submissionForms[ ticket._id ] || {}),
+        }
+
+        if (form.type === 'link' && !form.url.trim()) {
+            setActionError('Submission link is required')
+            return
+        }
+
+        if (form.type === 'file' && !form.file) {
+            setActionError('Choose a PDF, DOC or DOCX file to submit')
+            return
+        }
+
+        try {
+            setActionError('')
+            setSubmittingTicketId(ticket._id)
+
+            const payload = {
+                type: form.type,
+                note: form.note,
+                url: form.type === 'link' ? form.url.trim() : undefined,
+            }
+
+            if (form.type === 'file') {
+                payload.file = {
+                    name: form.file.name,
+                    type: form.file.type,
+                    size: form.file.size,
+                    dataUrl: await readFileAsDataUrl(form.file),
+                }
+            }
+
+            await axios.post(`/projects/${projectId}/tickets/${ticket._id}/submissions`, payload)
+            setSubmissionForms(prevForms => ({
+                ...prevForms,
+                [ ticket._id ]: getSubmissionFormDefaults(),
+            }))
+            await reloadProject()
+        } catch (err) {
+            setActionError(getErrorMessage(err, 'Could not submit ticket work'))
+        } finally {
+            setSubmittingTicketId('')
         }
     }
 
@@ -535,7 +667,7 @@ const Project = () => {
                                     const isAi = senderId === 'ai'
                                     const showDaySeparator = !previousMessage || !isSameDay(messageDate, previousMessageDate)
                                     const startsGroup = showDaySeparator || senderId !== previousSenderId
-                                    const senderLabel = isMine ? 'You' : msg.sender?.email || (isAi ? 'AI assistant' : 'Unknown')
+                                    const senderLabel = isMine ? 'You' : (isAi ? 'AI assistant' : getDisplayName(msg.sender))
 
                                     return (
                                         <React.Fragment key={msg._id || `${senderId}-${msg.createdAt}-${msg.message}`}>
@@ -638,7 +770,7 @@ const Project = () => {
                                         <select value={ticketForm.assignee} onChange={(event) => setTicketForm(prev => ({ ...prev, assignee: event.target.value }))} className='w-full rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-4 py-3 text-sm outline-none focus:border-[#888780] focus:bg-white'>
                                             <option value=''>Unassigned</option>
                                             {project.users?.map(member => (
-                                                <option key={getMemberId(member)} value={getMemberId(member)}>{member.email || member}</option>
+                                                <option key={getMemberId(member)} value={getMemberId(member)}>{getDisplayName(member)}</option>
                                             ))}
                                         </select>
                                         <div className='grid gap-3 sm:grid-cols-2'>
@@ -677,8 +809,18 @@ const Project = () => {
                                                                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[ ticket.priority ] || priorityClasses.medium}`}>{ticket.priority || 'medium'}</span>
                                                             </div>
                                                             {ticket.description && <p className='mb-4 text-sm leading-6 text-[#888780]'>{ticket.description}</p>}
-                                                            <div className='mb-4 text-xs font-medium text-[#888780]'>
-                                                                <div>{ticket.assignee?.email || 'Unassigned'}</div>
+                                                            <div className='mb-4 flex items-center gap-2 text-xs font-medium text-[#888780]'>
+                                                                {ticket.assignee ? (
+                                                                    <>
+                                                                        <UserAvatar user={ticket.assignee} size='sm' />
+                                                                        <div className='min-w-0'>
+                                                                            <div className='truncate text-[#2c2c2a]'>{getDisplayName(ticket.assignee)}</div>
+                                                                            <div className='truncate'>{ticket.assignee.email}</div>
+                                                                        </div>
+                                                                    </>
+                                                                ) : (
+                                                                    <div>Unassigned</div>
+                                                                )}
                                                             </div>
                                                             <select
                                                                 value={ticket.status}
@@ -703,24 +845,109 @@ const Project = () => {
                                         <span className='rounded-full bg-[#f8f8f5] px-2.5 py-1 text-xs font-semibold text-[#888780]'>{myTasks.length}</span>
                                     </div>
                                     <div className='space-y-3'>
-                                        {myTasks.length ? myTasks.map(ticket => (
-                                            <article key={ticket._id} className='rounded-[10px] border-[0.5px] border-[#e8e7e0] p-4'>
-                                                <div className='mb-2 flex items-start justify-between gap-3'>
-                                                    <h3 className='text-sm font-medium leading-6 text-[#2c2c2a]'>{ticket.title}</h3>
-                                                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[ ticket.priority ] || priorityClasses.medium}`}>{ticket.priority || 'medium'}</span>
-                                                </div>
-                                                <div className='mb-3 text-xs font-medium text-[#888780]'>{statusLabels[ ticket.status ] || ticket.status}</div>
-                                                <select
-                                                    value={ticket.status}
-                                                    onChange={(event) => updateTicketStatus(ticket, event.target.value)}
-                                                    className='w-full rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-3 py-2 text-xs outline-none focus:border-[#888780] focus:bg-white'
-                                                >
-                                                    {ticketColumns.map(option => (
-                                                        <option key={option.key} value={option.key}>{option.label}</option>
-                                                    ))}
-                                                </select>
-                                            </article>
-                                        )) : (
+                                        {myTasks.length ? myTasks.map(ticket => {
+                                            const submissionForm = {
+                                                ...getSubmissionFormDefaults(),
+                                                ...(submissionForms[ ticket._id ] || {}),
+                                            }
+                                            const isSubmittingWork = submittingTicketId === ticket._id
+
+                                            return (
+                                                <article key={ticket._id} className='rounded-[10px] border-[0.5px] border-[#e8e7e0] p-4'>
+                                                    <div className='mb-2 flex items-start justify-between gap-3'>
+                                                        <h3 className='text-sm font-medium leading-6 text-[#2c2c2a]'>{ticket.title}</h3>
+                                                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[ ticket.priority ] || priorityClasses.medium}`}>{ticket.priority || 'medium'}</span>
+                                                    </div>
+                                                    <div className='mb-3 text-xs font-medium text-[#888780]'>{statusLabels[ ticket.status ] || ticket.status}</div>
+                                                    <select
+                                                        value={ticket.status}
+                                                        onChange={(event) => updateTicketStatus(ticket, event.target.value)}
+                                                        className='w-full rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-3 py-2 text-xs outline-none focus:border-[#888780] focus:bg-white'
+                                                    >
+                                                        {ticketColumns.map(option => (
+                                                            <option key={option.key} value={option.key}>{option.label}</option>
+                                                        ))}
+                                                    </select>
+
+                                                    {ticket.submissions?.length > 0 && (
+                                                        <div className='mt-4 space-y-2 rounded-[10px] bg-[#f8f8f5] p-3'>
+                                                            <h4 className='text-[10px] font-semibold uppercase tracking-[0.08em] text-[#888780]'>Submissions</h4>
+                                                            {ticket.submissions.map(submission => (
+                                                                <div key={submission._id} className='rounded-[8px] bg-white p-2 text-xs'>
+                                                                    <div className='mb-1 flex items-center justify-between gap-2 text-[#888780]'>
+                                                                        <span>{submission.submittedBy ? getDisplayName(submission.submittedBy) : 'Submitted'}</span>
+                                                                        <span>{formatSubmissionDate(submission.createdAt)}</span>
+                                                                    </div>
+                                                                    {submission.type === 'link' ? (
+                                                                        <a href={submission.url} target='_blank' rel='noreferrer' className='break-all font-medium text-[#476a7e] hover:underline'>{submission.url}</a>
+                                                                    ) : (
+                                                                        <a href={submission.fileData} download={submission.fileName} className='font-medium text-[#476a7e] hover:underline'>
+                                                                            {submission.fileName} {submission.fileSize ? `(${formatFileSize(submission.fileSize)})` : ''}
+                                                                        </a>
+                                                                    )}
+                                                                    {submission.note && <p className='mt-1 leading-5 text-[#5f5e5a]'>{submission.note}</p>}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {ticket.status !== 'done' && (
+                                                        <form onSubmit={(event) => submitTicketWork(event, ticket)} className='mt-4 space-y-3 rounded-[10px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] p-3'>
+                                                            <div className='grid grid-cols-2 gap-2'>
+                                                                {[
+                                                                    { key: 'link', label: 'Link', icon: 'ri-links-line' },
+                                                                    { key: 'file', label: 'File', icon: 'ri-file-upload-line' },
+                                                                ].map(option => (
+                                                                    <button
+                                                                        type='button'
+                                                                        key={option.key}
+                                                                        onClick={() => updateSubmissionForm(ticket._id, { type: option.key })}
+                                                                        className={`inline-flex items-center justify-center gap-1 rounded-[9px] border-[0.5px] px-2 py-2 text-xs font-medium ${submissionForm.type === option.key ? 'border-[#2c2c2a] bg-white text-[#2c2c2a]' : 'border-[#d3d1c7] text-[#888780]'}`}
+                                                                    >
+                                                                        <i className={option.icon}></i>
+                                                                        {option.label}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+
+                                                            {submissionForm.type === 'link' ? (
+                                                                <input
+                                                                    value={submissionForm.url}
+                                                                    onChange={(event) => updateSubmissionForm(ticket._id, { url: event.target.value })}
+                                                                    type='url'
+                                                                    placeholder='https://work-link.com'
+                                                                    className='w-full rounded-[9px] border-[0.5px] border-[#d3d1c7] bg-white px-3 py-2 text-xs outline-none focus:border-[#888780]'
+                                                                />
+                                                            ) : (
+                                                                <label className='block rounded-[9px] border-[0.5px] border-dashed border-[#d3d1c7] bg-white px-3 py-3 text-center text-xs font-medium text-[#888780]'>
+                                                                    <input
+                                                                        type='file'
+                                                                        accept='.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                                                                        className='hidden'
+                                                                        onChange={(event) => handleSubmissionFile(ticket._id, event.target.files?.[ 0 ])}
+                                                                    />
+                                                                    {submissionForm.file ? `${submissionForm.file.name} (${formatFileSize(submissionForm.file.size)})` : 'Choose PDF, DOC or DOCX'}
+                                                                </label>
+                                                            )}
+
+                                                            <textarea
+                                                                value={submissionForm.note}
+                                                                onChange={(event) => updateSubmissionForm(ticket._id, { note: event.target.value })}
+                                                                placeholder='Optional note'
+                                                                className='min-h-20 w-full resize-none rounded-[9px] border-[0.5px] border-[#d3d1c7] bg-white px-3 py-2 text-xs outline-none focus:border-[#888780]'
+                                                            />
+                                                            <button
+                                                                type='submit'
+                                                                disabled={isSubmittingWork}
+                                                                className='w-full rounded-[9px] bg-[#2c2c2a] px-3 py-2 text-xs font-medium text-[#f0efe9] disabled:cursor-not-allowed disabled:bg-[#b4b2a9]'
+                                                            >
+                                                                {isSubmittingWork ? 'Submitting...' : 'Submit work'}
+                                                            </button>
+                                                        </form>
+                                                    )}
+                                                </article>
+                                            )
+                                        }) : (
                                             <p className='rounded-[10px] border-[0.5px] border-dashed border-[#d3d1c7] p-4 text-sm font-medium text-[#888780]'>No assigned tasks.</p>
                                         )}
                                     </div>
@@ -760,17 +987,14 @@ const Project = () => {
                         <div className='space-y-2'>
                             {project.users?.map(member => {
                                 const memberId = getMemberId(member)
-                                const memberEmail = member.email || member
                                 const role = memberId === projectOwnerId ? 'Owner' : 'Member'
 
                                 return (
                                     <div key={memberId} className='flex items-center gap-3 rounded-[10px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] p-3'>
-                                        <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2c2c2a] text-xs font-semibold text-[#f0efe9]'>
-                                            {getInitials(memberEmail)}
-                                        </div>
+                                        <UserAvatar user={member} size='md' />
                                         <div className='min-w-0'>
-                                            <div className='truncate text-sm font-medium text-[#2c2c2a]'>{memberEmail}</div>
-                                            <div className='text-[11px] font-medium text-[#888780]'>{role}</div>
+                                            <div className='truncate text-sm font-medium text-[#2c2c2a]'>{getDisplayName(member)}</div>
+                                            <div className='truncate text-[11px] font-medium text-[#888780]'>{role} · {member.email || member}</div>
                                         </div>
                                     </div>
                                 )
@@ -797,10 +1021,11 @@ const Project = () => {
                                     className={`flex cursor-pointer items-center gap-3 rounded-[10px] border-[0.5px] p-3 text-left hover:bg-[#f8f8f5] ${selectedUserId.has(listUser._id) ? 'border-[#2c2c2a] bg-[#f8f8f5]' : 'border-[#e8e7e0]'}`}
                                     onClick={() => handleUserClick(listUser._id)}
                                 >
-                                    <div className='flex h-9 w-9 items-center justify-center rounded-full bg-[#2c2c2a] text-xs font-semibold text-[#f0efe9]'>
-                                        {getInitials(listUser.email)}
-                                    </div>
-                                    <span className='min-w-0 truncate text-sm font-medium text-[#2c2c2a]'>{listUser.email}</span>
+                                    <UserAvatar user={listUser} size='md' />
+                                    <span className='min-w-0'>
+                                        <span className='block truncate text-sm font-medium text-[#2c2c2a]'>{getDisplayName(listUser)}</span>
+                                        <span className='block truncate text-[11px] font-medium text-[#888780]'>{listUser.email}</span>
+                                    </span>
                                 </button>
                             ))}
                         </div>

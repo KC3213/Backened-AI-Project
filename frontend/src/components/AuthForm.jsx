@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import WorkspaceBackdrop from './WorkspaceBackdrop'
+import AvatarPicker from './AvatarPicker'
 
 const featurePills = [
     { icon: 'ri-clipboard-line', label: 'Track tasks' },
@@ -14,14 +15,19 @@ const AuthForm = ({
     footerText,
     footerLinkText,
     footerLinkTo,
+    name,
     email,
     password,
+    avatarStyle,
     error,
     isSubmitting,
+    onNameChange,
     onEmailChange,
     onPasswordChange,
+    onAvatarStyleChange,
     onSubmit,
 }) => {
+    const isRegister = submitLabel !== 'Login'
     const heading = submitLabel === 'Login' ? 'Welcome back.' : title || 'Create account.'
 
     return (
@@ -45,6 +51,23 @@ const AuthForm = ({
                     </div>
 
                     <form onSubmit={onSubmit} className='space-y-5'>
+                        {isRegister && (
+                            <div>
+                                <label className='mb-1.5 block text-[12px] font-medium uppercase tracking-[0.04em] text-[#5f5e5a]' htmlFor='name'>Name</label>
+                                <input
+                                    id='name'
+                                    value={name}
+                                    onChange={(event) => onNameChange(event.target.value)}
+                                    type='text'
+                                    autoComplete='name'
+                                    className='block w-full rounded-[12px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-4 py-[14px] text-[15px] text-[#2c2c2a] outline-none placeholder:text-[#b4b2a9] focus:border-[#888780] focus:bg-white'
+                                    placeholder='Your name'
+                                    minLength={2}
+                                    required
+                                />
+                            </div>
+                        )}
+
                         <div>
                             <label className='mb-1.5 block text-[12px] font-medium uppercase tracking-[0.04em] text-[#5f5e5a]' htmlFor='email'>Email</label>
                             <input
@@ -72,6 +95,15 @@ const AuthForm = ({
                                 required
                             />
                         </div>
+
+                        {isRegister && (
+                            <AvatarPicker
+                                name={name}
+                                email={email}
+                                selectedStyle={avatarStyle}
+                                onSelect={onAvatarStyleChange}
+                            />
+                        )}
 
                         {error && (
                             <p className='rounded-[10px] bg-[#fcebeb] px-3 py-2 text-sm text-[#a32d2d]'>{error}</p>

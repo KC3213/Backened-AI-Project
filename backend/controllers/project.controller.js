@@ -233,6 +233,34 @@ export const updateTicket = async (req, res) => {
     }
 }
 
+export const createTicketSubmission = async (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        })
+
+        const submission = await projectService.createTicketSubmission({
+            projectId: req.params.projectId,
+            ticketId: req.params.ticketId,
+            userId: loggedInUser._id,
+            ...req.body
+        })
+
+        return res.status(201).json({
+            submission
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(400).json({ error: err.message })
+    }
+}
+
 export const updateFileTree = async (req, res) => {
     const errors = validationResult(req);
 

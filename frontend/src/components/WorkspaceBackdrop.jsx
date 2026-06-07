@@ -56,8 +56,6 @@ const WorkspaceBackdrop = () => {
             backdrop.style.setProperty('--star-mid-y', `${(yShift * -0.72).toFixed(2)}px`)
             backdrop.style.setProperty('--star-near-x', `${(xShift * 1.2).toFixed(2)}px`)
             backdrop.style.setProperty('--star-near-y', `${(yShift * 1.2).toFixed(2)}px`)
-            backdrop.style.setProperty('--orbit-x', `${(xShift * 0.42).toFixed(2)}px`)
-            backdrop.style.setProperty('--orbit-y', `${(yShift * 0.42).toFixed(2)}px`)
             backdrop.style.setProperty('--cursor-x', `${(pointerX * 100).toFixed(2)}%`)
             backdrop.style.setProperty('--cursor-y', `${(pointerY * 100).toFixed(2)}%`)
         }
@@ -92,11 +90,6 @@ const WorkspaceBackdrop = () => {
             <span className='workspace-comet workspace-comet-one'></span>
             <span className='workspace-comet workspace-comet-two'></span>
             <span className='workspace-comet workspace-comet-three'></span>
-
-            <div className='workspace-celestial-layer'>
-                <span className='workspace-sun'></span>
-                <span className='workspace-moon'></span>
-            </div>
         </div>
     )
 }

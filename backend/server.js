@@ -61,6 +61,8 @@ io.use(async (socket, next) => {
         socket.user = {
             _id: user._id.toString(),
             email: user.email,
+            name: user.name || '',
+            avatar: user.avatar || null,
         };
 
         next();
@@ -126,7 +128,9 @@ io.on('connection', socket => {
                             message: result,
                             sender: {
                                 _id: 'ai',
-                                email: 'AI'
+                                email: 'AI',
+                                name: 'AI assistant',
+                                avatar: null,
                             }
                         }
                     }

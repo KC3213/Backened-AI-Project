@@ -9,8 +9,11 @@ const router = Router();
 
 router.get('/me', authMiddleware.authUser, getMe);
 router.post('/register',
+    body('name').isString().trim().isLength({ min: 2, max: 50 }).withMessage('Name must be 2 to 50 characters long'),
     body('email').isEmail().withMessage('Email must be a valid email address'),
     body('password').isLength({ min: 3 }).withMessage('Password must be at least 3 characters long'),
+    body('avatarStyle').optional().isString().withMessage('Avatar style must be a string'),
+    body('avatarSeed').optional().isString().withMessage('Avatar seed must be a string'),
     userController.createUserController);
 
 router.post('/login',
