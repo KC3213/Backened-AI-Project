@@ -21,15 +21,16 @@ const JoinProject = () => {
     }, [ inviteCode, navigate ])
 
     return (
-        <main className='flex min-h-screen items-center justify-center bg-slate-100 p-4'>
-            <section className='w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm'>
-                <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-white'>
+        <main className='flex min-h-screen items-center justify-center bg-[#f0efe9] p-4 text-[#2c2c2a]'>
+            <section className='w-full max-w-md rounded-[20px] border-[0.5px] border-[#d3d1c7] bg-white p-8 text-center shadow-sm'>
+                <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#2c2c2a] text-[#f0efe9]'>
                     <i className="ri-link"></i>
                 </div>
-                <h1 className='text-xl font-semibold'>Joining project</h1>
-                <p className='mt-2 font-mono text-sm tracking-widest text-slate-500'>{inviteCode}</p>
+                <p className='text-[11px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Workspace invite</p>
+                <h1 className='font-display mt-1 text-[32px] leading-tight'>Joining project</h1>
+                <p className='mt-3 font-mono text-sm tracking-widest text-[#888780]'>{inviteCode}</p>
                 {error && (
-                    <div className='mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700'>{error}</div>
+                    <div className='mt-4 rounded-[10px] bg-[#fcebeb] p-3 text-sm text-[#a32d2d]'>{error}</div>
                 )}
             </section>
         </main>

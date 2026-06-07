@@ -109,6 +109,8 @@ See [docs/CHAT_REFRESH_AUTHOR_FIX.md](docs/CHAT_REFRESH_AUTHOR_FIX.md) for the c
 
 See [docs/CHAT_AND_WORKFLOW_ARCHITECTURE.md](docs/CHAT_AND_WORKFLOW_ARCHITECTURE.md) for the fresher-to-professional explanation of how the chat, sprint board, task board, bottlenecks, and scaling plan work.
 
+See [docs/UI_REDESIGN_IMPLEMENTATION.md](docs/UI_REDESIGN_IMPLEMENTATION.md) for the current UI redesign implementation details and browser verification notes.
+
 ## Troubleshooting
 
 - If protected routes return `Unauthorized User`, confirm the frontend has a token in local storage and `VITE_API_URL` points to the backend.

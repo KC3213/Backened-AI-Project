@@ -7,7 +7,7 @@ const UserAuth = ({ children }) => {
 
   if (loading) {
     return (
-      <main className='flex min-h-screen items-center justify-center bg-slate-100 text-sm font-medium text-slate-500'>
+      <main className='flex min-h-screen items-center justify-center bg-[#f0efe9] text-sm font-medium text-[#888780]'>
         Loading...
       </main>
     )

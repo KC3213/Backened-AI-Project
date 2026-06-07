@@ -11,10 +11,10 @@ const pendingTaskColumns = [
 ]
 
 const priorityClasses = {
-    low: 'bg-slate-100 text-slate-700',
-    medium: 'bg-blue-100 text-blue-700',
-    high: 'bg-amber-100 text-amber-700',
-    urgent: 'bg-red-100 text-red-700',
+    low: 'bg-[#eaf3de] text-[#3b6d11]',
+    medium: 'bg-[#faeeda] text-[#854f0b]',
+    high: 'bg-[#fcebeb] text-[#a32d2d]',
+    urgent: 'bg-[#fcebeb] text-[#a32d2d]',
 }
 
 const getMemberId = (member) => {
@@ -64,6 +64,22 @@ const Home = () => {
     const pendingTaskCount = useMemo(() => {
         return pendingTaskColumns.reduce((count, column) => count + pendingTasksByStatus[ column.key ].length, 0)
     }, [ pendingTasksByStatus ])
+
+    const statCards = useMemo(() => ([
+        {
+            label: 'Assigned to me',
+            value: pendingTaskCount,
+            highlighted: true,
+        },
+        {
+            label: 'In progress',
+            value: pendingTasksByStatus[ 'in-progress' ].length,
+        },
+        {
+            label: 'In review',
+            value: pendingTasksByStatus.review.length,
+        },
+    ]), [ pendingTaskCount, pendingTasksByStatus ])
 
     const loadProjects = useCallback(async () => {
         setProjectError('')
@@ -127,26 +143,24 @@ const Home = () => {
     }, [ loadProjects ])
 
     return (
-        <main className='min-h-screen bg-slate-100 text-slate-950'>
-            <header className='border-b border-slate-200 bg-white px-4 py-5 sm:px-6'>
-                <div className='mx-auto flex max-w-7xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+        <main className='min-h-screen bg-[#f0efe9] text-[#2c2c2a]'>
+            <header className='border-b-[0.5px] border-[#d3d1c7] bg-white px-4 sm:px-6'>
+                <div className='mx-auto flex min-h-[52px] max-w-7xl flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between'>
                     <div>
-                        <p className='text-sm font-semibold uppercase tracking-wide text-slate-500'>Workspace</p>
-                        <h1 className='mt-1 text-3xl font-semibold tracking-tight'>Projects</h1>
+                        <p className='text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Workspace</p>
+                        <h1 className='font-display text-xl leading-6 text-[#2c2c2a]'>Projects</h1>
                     </div>
-                    <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
-                        <span className='max-w-xs truncate rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600'>
-                            {user?.email}
-                        </span>
+                    <div className='flex flex-wrap items-center gap-2'>
+                        <span className='max-w-[220px] truncate text-xs font-medium text-[#888780]'>{user?.email}</span>
                         <button
                             onClick={handleLogout}
-                            className='inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50'>
+                            className='inline-flex h-9 items-center gap-2 rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-white px-3 text-sm font-medium text-[#2c2c2a] hover:bg-[#f8f8f5]'>
                             <i className="ri-logout-box-r-line"></i>
                             Logout
                         </button>
                         <button
                             onClick={() => setIsModalOpen(true)}
-                            className='inline-flex w-fit items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800'>
+                            className='inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#2c2c2a] px-3 text-sm font-medium text-[#f0efe9] hover:bg-[#444441]'>
                             <i className="ri-add-line"></i>
                             New project
                         </button>
@@ -154,132 +168,136 @@ const Home = () => {
                 </div>
             </header>
 
-            <section className='mx-auto grid max-w-7xl gap-4 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px]'>
-                <section className='min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2 sm:p-5'>
-                    <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
-                        <div>
-                            <h2 className='text-lg font-semibold'>My pending tasks</h2>
-                            <p className='mt-1 text-sm text-slate-500'>{pendingTaskCount} assigned across projects</p>
-                        </div>
-                        <span className='rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500'>{pendingTaskCount}</span>
+            <section className='mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_240px]'>
+                <div className='min-w-0 space-y-4'>
+                    <div className='grid gap-3 sm:grid-cols-3'>
+                        {statCards.map(card => (
+                            <article
+                                key={card.label}
+                                className={`rounded-xl border-[0.5px] p-[14px_16px] ${card.highlighted ? 'border-[#2c2c2a] bg-[#2c2c2a]' : 'border-[#d3d1c7] bg-white'}`}>
+                                <div className={`font-display text-[28px] leading-none ${card.highlighted ? 'text-[#f0efe9]' : 'text-[#2c2c2a]'}`}>{card.value}</div>
+                                <div className={`mt-2 text-[11px] font-medium ${card.highlighted ? 'text-[#f0efe9]/80' : 'text-[#888780]'}`}>{card.label}</div>
+                            </article>
+                        ))}
                     </div>
 
-                    {pendingTaskCount ? (
+                    <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
+                        <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+                            <h2 className='text-[13px] font-medium text-[#2c2c2a]'>My pending tasks</h2>
+                            <span className='text-[11px] font-medium text-[#888780]'>{pendingTaskCount} assigned across projects</span>
+                        </div>
+
                         <div className='overflow-x-auto'>
-                            <div className='grid min-w-[840px] grid-cols-3 gap-3'>
+                            <div className='grid min-w-[780px] grid-cols-3 gap-3'>
                                 {pendingTaskColumns.map(column => (
-                                    <div key={column.key} className='min-h-52 rounded-lg bg-slate-100 p-3'>
+                                    <div key={column.key} className='min-h-48 rounded-[10px] bg-[#f8f8f5] p-2.5'>
                                         <div className='mb-3 flex items-center justify-between'>
-                                            <h3 className='text-sm font-semibold'>{column.label}</h3>
-                                            <span className='rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500'>{pendingTasksByStatus[ column.key ].length}</span>
+                                            <h3 className='text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5f5e5a]'>{column.label}</h3>
+                                            <span className='rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-[#888780]'>{pendingTasksByStatus[ column.key ].length}</span>
                                         </div>
-                                        <div className='space-y-3'>
-                                            {pendingTasksByStatus[ column.key ].map(task => (
+                                        <div className='space-y-2.5'>
+                                            {pendingTasksByStatus[ column.key ].length ? pendingTasksByStatus[ column.key ].map(task => (
                                                 <button
                                                     key={`${task.projectId}-${task._id}`}
                                                     onClick={() => navigate(`/project/${task.projectId}`)}
-                                                    className='block w-full rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md'>
-                                                    <div className='mb-2 flex items-start justify-between gap-2'>
-                                                        <h4 className='text-sm font-semibold leading-5'>{task.title}</h4>
-                                                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityClasses[ task.priority ] || priorityClasses.medium}`}>{task.priority || 'medium'}</span>
-                                                    </div>
-                                                    <div className='text-xs font-medium text-slate-500'>{task.projectName}</div>
+                                                    className='block w-full rounded-lg border-[0.5px] border-[#e8e7e0] bg-white px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-sm'>
+                                                    <h4 className='text-[13px] font-medium leading-5 text-[#2c2c2a]'>{task.title}</h4>
+                                                    <div className='mt-1 text-[11px] font-medium text-[#888780]'>{task.projectName}</div>
+                                                    <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityClasses[ task.priority ] || priorityClasses.medium}`}>
+                                                        {task.priority || 'medium'}
+                                                    </span>
                                                 </button>
-                                            ))}
+                                            )) : (
+                                                <div className='flex min-h-28 items-center justify-center text-[12px] font-medium text-[#b4b2a9]'>No tasks</div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                    ) : (
-                        <p className='rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-500'>No pending assigned tasks.</p>
-                    )}
-                </section>
-
-                <div className='min-w-0'>
-                    <div className='mb-4 flex items-center justify-between'>
-                        <h2 className='text-lg font-semibold'>Active projects</h2>
-                        <span className='text-sm text-slate-500'>{projects.length} total</span>
-                    </div>
-                    {projectError && (
-                        <p className='mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700'>{projectError}</p>
-                    )}
-                    <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-3'>
-                        {projects.map((project) => (
-                            <button key={project._id}
-                                onClick={() => {
-                                    navigate(`/project/${project._id}`, {
-                                        state: { project }
-                                    })
-                                }}
-                                className="rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                                <div className='mb-8 flex items-start justify-between gap-3'>
-                                    <div>
-                                        <h3 className='text-lg font-semibold capitalize'>{project.name}</h3>
-                                        <p className='mt-1 text-sm text-slate-500'>{project.inviteCode || 'Invite code pending'}</p>
-                                    </div>
-                                    <i className="ri-arrow-right-up-line text-xl text-slate-400"></i>
-                                </div>
-
-                                <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-sm text-slate-500">
-                                    <span className='inline-flex items-center gap-1'>
-                                        <i className="ri-user-line"></i>
-                                        {project.users.length} members
-                                    </span>
-                                    <span className='inline-flex items-center gap-1'>
-                                        <i className="ri-task-line"></i>
-                                        {project.tickets?.length || 0} tickets
-                                    </span>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
+                    </section>
                 </div>
 
-                <aside>
-                    <form onSubmit={joinProject} className='rounded-lg border border-slate-200 bg-white p-4 shadow-sm'>
-                        <h2 className='mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500'>Join project</h2>
+                <aside className='space-y-3 lg:w-[240px]'>
+                    <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-3'>
+                        <div className='mb-3 flex items-center justify-between'>
+                            <h2 className='text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Active projects</h2>
+                            <span className='text-[11px] font-medium text-[#888780]'>{projects.length}</span>
+                        </div>
+                        {projectError && (
+                            <p className='mb-3 rounded-[10px] bg-[#fcebeb] px-3 py-2 text-sm text-[#a32d2d]'>{projectError}</p>
+                        )}
+                        <div className='space-y-2'>
+                            {projects.length ? projects.map(project => (
+                                <button
+                                    key={project._id}
+                                    onClick={() => navigate(`/project/${project._id}`, { state: { project } })}
+                                    className='w-full rounded-[10px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] p-3 text-left hover:bg-white'>
+                                    <div className='flex items-start justify-between gap-2'>
+                                        <h3 className='max-w-[170px] truncate text-sm font-medium capitalize text-[#2c2c2a]'>{project.name}</h3>
+                                        <i className='ri-arrow-right-up-line text-[#888780]'></i>
+                                    </div>
+                                    <p className='mt-1 font-mono text-[11px] tracking-[0.08em] text-[#888780]'>{project.inviteCode || 'PENDING'}</p>
+                                    <div className='mt-3 flex items-center gap-3 text-[11px] font-medium text-[#888780]'>
+                                        <span className='inline-flex items-center gap-1'>
+                                            <i className='ri-user-line'></i>
+                                            {project.users?.length || 0}
+                                        </span>
+                                        <span className='inline-flex items-center gap-1'>
+                                            <i className='ri-task-line'></i>
+                                            {project.tickets?.length || 0}
+                                        </span>
+                                    </div>
+                                </button>
+                            )) : (
+                                <p className='rounded-[10px] border-[0.5px] border-dashed border-[#d3d1c7] px-3 py-4 text-center text-xs text-[#888780]'>No projects yet.</p>
+                            )}
+                        </div>
+                    </section>
+
+                    <form onSubmit={joinProject} className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-3'>
+                        <h2 className='mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Join project</h2>
                         <div className='flex gap-2'>
                             <input
                                 value={inviteCode}
                                 onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-                                className='min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm tracking-widest outline-none focus:border-slate-900'
+                                className='min-w-0 flex-1 rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-3 py-[9px] font-mono text-xs tracking-[0.08em] text-[#2c2c2a] outline-none placeholder:text-[#b4b2a9] focus:border-[#888780] focus:bg-white'
                                 placeholder='INVITE'
                             />
-                            <button className='rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white'>Join</button>
+                            <button className='rounded-[10px] bg-[#2c2c2a] px-3 text-xs font-medium text-[#f0efe9] hover:bg-[#444441]'>Join</button>
                         </div>
-                        {joinError && <p className='mt-3 text-sm text-red-600'>{joinError}</p>}
+                        {joinError && <p className='mt-3 text-sm text-[#a32d2d]'>{joinError}</p>}
                     </form>
                 </aside>
             </section>
 
             {isModalOpen && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+                <div className='fixed inset-0 z-40 flex items-center justify-center bg-[#2c2c2a]/40 p-4'>
+                    <div className='w-full max-w-md rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-6 shadow-xl'>
                         <div className='mb-4 flex items-center justify-between'>
-                            <h2 className="text-lg font-semibold">Create project</h2>
-                            <button type="button" className="h-9 w-9 rounded-md hover:bg-slate-100" onClick={() => setIsModalOpen(false)}>
-                                <i className="ri-close-line"></i>
+                            <h2 className='font-display text-2xl text-[#2c2c2a]'>Create project</h2>
+                            <button type='button' className='h-9 w-9 rounded-[10px] text-[#888780] hover:bg-[#f8f8f5]' onClick={() => setIsModalOpen(false)}>
+                                <i className='ri-close-line'></i>
                             </button>
                         </div>
                         <form onSubmit={createProject} className='space-y-4'>
                             <div>
-                                <label className="mb-1 block text-sm font-medium text-slate-700">Project name</label>
+                                <label className='mb-1.5 block text-[12px] font-medium uppercase tracking-[0.04em] text-[#5f5e5a]'>Project name</label>
                                 <input
                                     onChange={(e) => setProjectName(e.target.value)}
                                     value={projectName}
-                                    type="text"
-                                    className="block w-full rounded-md border border-slate-300 p-2 text-sm outline-none focus:border-slate-950"
+                                    type='text'
+                                    className='block w-full rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-3.5 py-[11px] text-sm outline-none focus:border-[#888780] focus:bg-white'
                                     required
                                 />
                             </div>
-                            <div className="flex justify-end gap-2">
-                                <button type="button" className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => setIsModalOpen(false)}>Cancel</button>
-                                <button type="submit" disabled={isCreating} className="rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+                            {createError && <p className='rounded-[10px] bg-[#fcebeb] px-3 py-2 text-sm text-[#a32d2d]'>{createError}</p>}
+                            <div className='flex justify-end gap-2'>
+                                <button type='button' className='rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-white px-4 py-2 text-sm font-medium text-[#2c2c2a] hover:bg-[#f8f8f5]' onClick={() => setIsModalOpen(false)}>Cancel</button>
+                                <button type='submit' disabled={isCreating} className='rounded-[10px] bg-[#2c2c2a] px-4 py-2 text-sm font-medium text-[#f0efe9] hover:bg-[#444441] disabled:cursor-not-allowed disabled:bg-[#b4b2a9]'>
                                     {isCreating ? 'Creating...' : 'Create'}
                                 </button>
                             </div>
-                            {createError && <p className='text-sm text-red-600'>{createError}</p>}
                         </form>
                     </div>
                 </div>
