@@ -5,7 +5,7 @@
 This update adds two workflow rules to the workspace:
 
 - Only the project admin can view, copy, regenerate, or share a project invite link.
-- The dashboard sidebar now includes basic Account and Settings panels for the logged-in user.
+- The left dashboard sidebar now includes basic Account and Settings panels for the logged-in user.
 
 ## Invite Access Rule
 
@@ -48,8 +48,8 @@ This matters because hiding buttons in React is not enough. Without backend enfo
 Dashboard:
 
 - Project cards now show `Admin access` or `Member access` instead of showing invite codes.
-- Sidebar includes an Account card with email, user ID, admin project count, member project count, and total ticket count.
-- Sidebar includes a Settings card showing current workspace defaults, including admin-only invite links.
+- Left sidebar includes an Account card with email, user ID, admin project count, member project count, and total ticket count.
+- Left sidebar includes a Settings card showing current workspace defaults, including admin-only invite links.
 
 Project page:
 

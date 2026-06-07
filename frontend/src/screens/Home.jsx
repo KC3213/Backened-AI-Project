@@ -189,8 +189,8 @@ const Home = () => {
                 </div>
             </header>
 
-            <section className='mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_280px]'>
-                <div className='min-w-0 space-y-4'>
+            <section className='mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)]'>
+                <div className='order-2 min-w-0 space-y-4'>
                     <div className='grid gap-3 sm:grid-cols-3'>
                         {statCards.map(card => (
                             <article
@@ -239,7 +239,7 @@ const Home = () => {
                     </section>
                 </div>
 
-                <aside className='space-y-3 lg:w-[280px]'>
+                <aside className='order-1 space-y-3 lg:w-[280px]'>
                     <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
                         <div className='mb-4 flex items-center gap-3'>
                             <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2c2c2a] text-sm font-semibold text-[#f0efe9]'>
