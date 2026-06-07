@@ -96,6 +96,7 @@ npm run preview  # preview the production build
 - Socket.IO uses the same backend URL and requires a valid JWT plus `projectId`.
 - Send `@ai` in a project chat message to ask Gemini for a response in the project chat.
 - Invite links use `/join/:inviteCode`; users can also paste an invite code on the dashboard.
+- Invite codes and invite-link sharing are visible only to the project admin.
 - Sprints and tickets are scoped to a project.
 - Only the project admin, currently the project owner, can create sprints.
 - Tickets support assignment, priority, and status updates.
@@ -110,6 +111,8 @@ See [docs/CHAT_REFRESH_AUTHOR_FIX.md](docs/CHAT_REFRESH_AUTHOR_FIX.md) for the c
 See [docs/CHAT_AND_WORKFLOW_ARCHITECTURE.md](docs/CHAT_AND_WORKFLOW_ARCHITECTURE.md) for the fresher-to-professional explanation of how the chat, sprint board, task board, bottlenecks, and scaling plan work.
 
 See [docs/UI_REDESIGN_IMPLEMENTATION.md](docs/UI_REDESIGN_IMPLEMENTATION.md) for the current UI redesign implementation details and browser verification notes.
+
+See [docs/ADMIN_INVITE_AND_ACCOUNT_UPDATES.md](docs/ADMIN_INVITE_AND_ACCOUNT_UPDATES.md) for the admin-only invite rule and dashboard account/settings sidebar details.
 
 ## Troubleshooting
 

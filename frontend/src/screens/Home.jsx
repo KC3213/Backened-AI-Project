@@ -25,6 +25,16 @@ const getMemberId = (member) => {
     return typeof member === 'object' ? member._id?.toString() : member.toString()
 }
 
+const getInitials = (email = '') => {
+    const username = email.split('@')[ 0 ] || ''
+
+    return username.slice(0, 2).toUpperCase() || 'U'
+}
+
+const getProjectRole = (project, currentUserId) => {
+    return getMemberId(project.owner) === currentUserId ? 'Admin' : 'Member'
+}
+
 const Home = () => {
     const [ isModalOpen, setIsModalOpen ] = useState(false)
     const [ projectName, setProjectName ] = useState('')
@@ -80,6 +90,17 @@ const Home = () => {
             value: pendingTasksByStatus.review.length,
         },
     ]), [ pendingTaskCount, pendingTasksByStatus ])
+
+    const dashboardSummary = useMemo(() => {
+        const adminProjectCount = projects.filter(project => getProjectRole(project, currentUserId) === 'Admin').length
+        const totalTicketCount = projects.reduce((count, project) => count + (project.tickets?.length || 0), 0)
+
+        return {
+            adminProjectCount,
+            memberProjectCount: Math.max(projects.length - adminProjectCount, 0),
+            totalTicketCount,
+        }
+    }, [ currentUserId, projects ])
 
     const loadProjects = useCallback(async () => {
         setProjectError('')
@@ -168,7 +189,7 @@ const Home = () => {
                 </div>
             </header>
 
-            <section className='mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_240px]'>
+            <section className='mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_280px]'>
                 <div className='min-w-0 space-y-4'>
                     <div className='grid gap-3 sm:grid-cols-3'>
                         {statCards.map(card => (
@@ -218,7 +239,55 @@ const Home = () => {
                     </section>
                 </div>
 
-                <aside className='space-y-3 lg:w-[240px]'>
+                <aside className='space-y-3 lg:w-[280px]'>
+                    <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
+                        <div className='mb-4 flex items-center gap-3'>
+                            <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2c2c2a] text-sm font-semibold text-[#f0efe9]'>
+                                {getInitials(user?.email)}
+                            </div>
+                            <div className='min-w-0'>
+                                <h2 className='text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Account</h2>
+                                <p className='truncate text-sm font-medium text-[#2c2c2a]'>{user?.email}</p>
+                            </div>
+                        </div>
+                        <div className='space-y-2 rounded-[10px] bg-[#f8f8f5] p-3 text-[12px] font-medium text-[#5f5e5a]'>
+                            <div className='flex items-center justify-between gap-3'>
+                                <span>User ID</span>
+                                <span className='max-w-[130px] truncate font-mono text-[11px] text-[#888780]'>{user?._id || 'Unavailable'}</span>
+                            </div>
+                            <div className='flex items-center justify-between gap-3'>
+                                <span>Admin projects</span>
+                                <span className='text-[#2c2c2a]'>{dashboardSummary.adminProjectCount}</span>
+                            </div>
+                            <div className='flex items-center justify-between gap-3'>
+                                <span>Member projects</span>
+                                <span className='text-[#2c2c2a]'>{dashboardSummary.memberProjectCount}</span>
+                            </div>
+                            <div className='flex items-center justify-between gap-3'>
+                                <span>Total tickets</span>
+                                <span className='text-[#2c2c2a]'>{dashboardSummary.totalTicketCount}</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
+                        <h2 className='mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Settings</h2>
+                        <div className='space-y-2'>
+                            <div className='flex items-center justify-between gap-3 rounded-[10px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] px-3 py-2'>
+                                <span className='text-[12px] font-medium text-[#5f5e5a]'>Theme</span>
+                                <span className='text-[12px] font-medium text-[#2c2c2a]'>Workspace</span>
+                            </div>
+                            <div className='flex items-center justify-between gap-3 rounded-[10px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] px-3 py-2'>
+                                <span className='text-[12px] font-medium text-[#5f5e5a]'>Invite links</span>
+                                <span className='text-[12px] font-medium text-[#2c2c2a]'>Admin only</span>
+                            </div>
+                            <div className='flex items-center justify-between gap-3 rounded-[10px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] px-3 py-2'>
+                                <span className='text-[12px] font-medium text-[#5f5e5a]'>Task view</span>
+                                <span className='text-[12px] font-medium text-[#2c2c2a]'>Pending</span>
+                            </div>
+                        </div>
+                    </section>
+
                     <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-3'>
                         <div className='mb-3 flex items-center justify-between'>
                             <h2 className='text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Active projects</h2>
@@ -237,7 +306,7 @@ const Home = () => {
                                         <h3 className='max-w-[170px] truncate text-sm font-medium capitalize text-[#2c2c2a]'>{project.name}</h3>
                                         <i className='ri-arrow-right-up-line text-[#888780]'></i>
                                     </div>
-                                    <p className='mt-1 font-mono text-[11px] tracking-[0.08em] text-[#888780]'>{project.inviteCode || 'PENDING'}</p>
+                                    <p className='mt-1 text-[11px] font-medium text-[#888780]'>{getProjectRole(project, currentUserId)} access</p>
                                     <div className='mt-3 flex items-center gap-3 text-[11px] font-medium text-[#888780]'>
                                         <span className='inline-flex items-center gap-1'>
                                             <i className='ri-user-line'></i>

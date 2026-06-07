@@ -81,10 +81,32 @@ const ensureProjectDefaults = async (project) => {
     return project
 }
 
+const getProjectOwnerId = (project) => {
+    if (!project?.owner) {
+        return ''
+    }
+
+    return typeof project.owner === 'object' && project.owner._id
+        ? project.owner._id.toString()
+        : project.owner.toString()
+}
+
 const requireProjectOwner = (project, userId) => {
-    if (!project.owner || project.owner.toString() !== userId.toString()) {
+    if (getProjectOwnerId(project) !== userId.toString()) {
         throw new Error('Only project admin can perform this action')
     }
+}
+
+const serializeProjectForUser = (project, userId) => {
+    const serializedProject = typeof project.toObject === 'function'
+        ? project.toObject()
+        : { ...project }
+
+    if (getProjectOwnerId(serializedProject) !== userId.toString()) {
+        delete serializedProject.inviteCode
+    }
+
+    return serializedProject
 }
 
 export const createProject = async ({
@@ -133,7 +155,7 @@ export const getAllProjectByUserId = async ({ userId }) => {
         { path: 'tickets.createdBy', select: 'email' },
     ])
 
-    return allUserProjects
+    return allUserProjects.map(project => serializeProjectForUser(project, userId))
 }
 
 export const addUsersToProject = async ({ projectId, users, userId }) => {
@@ -159,7 +181,9 @@ export const addUsersToProject = async ({ projectId, users, userId }) => {
     validateObjectId(userId, 'userId')
 
 
-    await getMemberProject({ projectId, userId })
+    const project = await getMemberProject({ projectId, userId })
+    await ensureProjectOwner(project)
+    requireProjectOwner(project, userId)
 
     const updatedProject = await projectModel.findOneAndUpdate({
         _id: projectId
@@ -172,8 +196,12 @@ export const addUsersToProject = async ({ projectId, users, userId }) => {
     }, {
         new: true
     })
+        .populate('users', 'email')
+        .populate('owner', 'email')
+        .populate('tickets.assignee', 'email')
+        .populate('tickets.createdBy', 'email')
 
-    return updatedProject
+    return serializeProjectForUser(updatedProject, userId)
 
 
 
@@ -201,7 +229,7 @@ export const getProjectById = async ({ projectId, userId }) => {
     await project.populate('tickets.assignee', 'email')
     await project.populate('tickets.createdBy', 'email')
 
-    return project;
+    return serializeProjectForUser(project, userId);
 }
 
 export const updateFileTree = async ({ projectId, fileTree }) => {
@@ -271,11 +299,14 @@ export const joinProjectByInviteCode = async ({ inviteCode, userId }) => {
 
     project = await ensureProjectDefaults(project)
 
-    return project
+    return serializeProjectForUser(project, userId)
 }
 
 export const regenerateInviteCode = async ({ projectId, userId }) => {
     const project = await getMemberProject({ projectId, userId })
+    await ensureProjectOwner(project)
+    requireProjectOwner(project, userId)
+
     project.inviteCode = await createUniqueInviteCode()
     await project.save()
 

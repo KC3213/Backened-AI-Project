@@ -189,7 +189,7 @@ const Project = () => {
     }
 
     async function addCollaborators() {
-        if (!project || selectedUserId.size === 0) {
+        if (!isProjectAdmin || !project || selectedUserId.size === 0) {
             return
         }
 
@@ -241,7 +241,7 @@ const Project = () => {
     }
 
     const copyInviteLink = async () => {
-        if (!inviteLink) {
+        if (!isProjectAdmin || !inviteLink) {
             return
         }
 
@@ -251,7 +251,7 @@ const Project = () => {
     }
 
     const regenerateInviteCode = async () => {
-        if (!projectId) {
+        if (!isProjectAdmin || !projectId) {
             return
         }
 
@@ -342,12 +342,20 @@ const Project = () => {
             navigate('/')
         })
 
+    }, [ navigate, projectId, reloadProject ])
+
+    useEffect(() => {
+        if (!isProjectAdmin) {
+            setUsers([])
+            return
+        }
+
         axios.get('/users/all').then((res) => {
             setUsers(res.data.users || [])
         }).catch((err) => {
             setActionError(getErrorMessage(err, 'Could not load users'))
         })
-    }, [ navigate, projectId, reloadProject ])
+    }, [ isProjectAdmin ])
 
     useEffect(() => {
         if (!projectId) {
@@ -429,14 +437,16 @@ const Project = () => {
                         </div>
                     </div>
                     <div className='flex flex-wrap items-center gap-2'>
-                        <button
-                            type='button'
-                            onClick={() => setIsModalOpen(true)}
-                            className='inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#2c2c2a] px-3 text-sm font-medium text-[#f0efe9] hover:bg-[#444441]'
-                        >
-                            <i className="ri-user-add-line"></i>
-                            Add people
-                        </button>
+                        {isProjectAdmin && (
+                            <button
+                                type='button'
+                                onClick={() => setIsModalOpen(true)}
+                                className='inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#2c2c2a] px-3 text-sm font-medium text-[#f0efe9] hover:bg-[#444441]'
+                            >
+                                <i className="ri-user-add-line"></i>
+                                Add people
+                            </button>
+                        )}
                         <button
                             type='button'
                             onClick={() => document.getElementById('members-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -693,19 +703,26 @@ const Project = () => {
                 </div>
 
                 <aside className='space-y-4 xl:w-[280px]'>
-                    <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4 shadow-sm'>
-                        <h2 className='mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Invite code</h2>
-                        <div className='mb-3 rounded-[10px] bg-[#f8f8f5] p-3 text-center font-mono text-xl font-semibold tracking-widest text-[#2c2c2a]'>{project.inviteCode || '--------'}</div>
-                        <input
-                            value={inviteLink || 'Invite link will appear after code generation'}
-                            readOnly
-                            className='mb-3 w-full truncate rounded-[10px] border-[0.5px] border-[#e8e7e0] bg-white px-3 py-2 text-xs text-[#888780] outline-none'
-                        />
-                        <div className='flex gap-2'>
-                            <button type='button' onClick={copyInviteLink} className='flex-1 rounded-[10px] bg-[#2c2c2a] px-3 py-2 text-sm font-medium text-[#f0efe9] hover:bg-[#444441]'>{copyState || 'Copy link'}</button>
-                            <button type='button' onClick={regenerateInviteCode} className='h-10 w-10 rounded-[10px] border-[0.5px] border-[#d3d1c7] text-[#2c2c2a] hover:bg-[#f8f8f5]' aria-label='Regenerate invite code'><i className="ri-refresh-line"></i></button>
-                        </div>
-                    </section>
+                    {isProjectAdmin ? (
+                        <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4 shadow-sm'>
+                            <h2 className='mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Invite code</h2>
+                            <div className='mb-3 rounded-[10px] bg-[#f8f8f5] p-3 text-center font-mono text-xl font-semibold tracking-widest text-[#2c2c2a]'>{project.inviteCode || '--------'}</div>
+                            <input
+                                value={inviteLink || 'Invite link will appear after code generation'}
+                                readOnly
+                                className='mb-3 w-full truncate rounded-[10px] border-[0.5px] border-[#e8e7e0] bg-white px-3 py-2 text-xs text-[#888780] outline-none'
+                            />
+                            <div className='flex gap-2'>
+                                <button type='button' onClick={copyInviteLink} className='flex-1 rounded-[10px] bg-[#2c2c2a] px-3 py-2 text-sm font-medium text-[#f0efe9] hover:bg-[#444441]'>{copyState || 'Copy link'}</button>
+                                <button type='button' onClick={regenerateInviteCode} className='h-10 w-10 rounded-[10px] border-[0.5px] border-[#d3d1c7] text-[#2c2c2a] hover:bg-[#f8f8f5]' aria-label='Regenerate invite code'><i className="ri-refresh-line"></i></button>
+                            </div>
+                        </section>
+                    ) : (
+                        <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4 shadow-sm'>
+                            <h2 className='mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Invite access</h2>
+                            <p className='text-sm leading-6 text-[#5f5e5a]'>Only the project admin can view or share the invite link.</p>
+                        </section>
+                    )}
 
                     <section id='members-panel' className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4 shadow-sm'>
                         <div className='mb-3 flex items-center justify-between'>
@@ -735,7 +752,7 @@ const Project = () => {
                 </aside>
             </section>
 
-            {isModalOpen && (
+            {isProjectAdmin && isModalOpen && (
                 <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#2c2c2a]/40 p-4">
                     <div className="w-full max-w-md rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-5 shadow-xl">
                         <header className='mb-4 flex items-center justify-between'>
