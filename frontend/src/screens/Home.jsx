@@ -168,7 +168,7 @@ const Home = () => {
         <main className='workspace-page min-h-screen text-[#2c2c2a]'>
             <WorkspaceBackdrop />
             <header className='relative z-10 border-b-[0.5px] border-[#d3d1c7] bg-white/95 px-4 backdrop-blur sm:px-6'>
-                <div className='mx-auto flex min-h-[52px] max-w-7xl flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between'>
+                <div className='mx-auto flex min-h-[52px] max-w-[1200px] flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between'>
                     <div>
                         <p className='text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Workspace</p>
                         <h1 className='font-display text-xl leading-6 text-[#2c2c2a]'>Projects</h1>
@@ -191,7 +191,7 @@ const Home = () => {
                 </div>
             </header>
 
-            <section className='relative z-10 mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)]'>
+            <section className='relative z-10 mx-auto grid max-w-[1200px] justify-center gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[260px_minmax(0,860px)]'>
                 <div className='order-2 min-w-0 space-y-4'>
                     <section className='workspace-animated-panel rounded-[18px] border-[0.5px] border-[#d3d1c7] bg-white/90 p-5 shadow-[0_18px_60px_rgba(44,44,42,0.09)] backdrop-blur'>
                         <div className='relative z-10 grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-center'>
@@ -265,7 +265,7 @@ const Home = () => {
                     </section>
                 </div>
 
-                <aside className='order-1 space-y-3 lg:w-[280px]'>
+                <aside className='order-1 space-y-3 lg:w-[260px]'>
                     <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
                         <div className='mb-4 flex items-center gap-3'>
                             <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2c2c2a] text-sm font-semibold text-[#f0efe9]'>

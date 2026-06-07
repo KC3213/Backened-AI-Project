@@ -97,12 +97,6 @@ const WorkspaceBackdrop = () => {
                 <span className='workspace-sun'></span>
                 <span className='workspace-moon'></span>
             </div>
-
-            <div className='workspace-horizon'>
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
         </div>
     )
 }

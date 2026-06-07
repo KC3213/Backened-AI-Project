@@ -63,8 +63,6 @@ body {
   --sun-opacity: 0.92;
   --moon-opacity: 0.18;
   --comet-opacity: 0.42;
-  --moon-mask: rgba(222, 239, 249, 0.96);
-  --horizon-opacity: 0.78;
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -84,8 +82,6 @@ body {
   --sun-opacity: 0.18;
   --moon-opacity: 0.92;
   --comet-opacity: 0.82;
-  --moon-mask: rgba(9, 14, 32, 0.98);
-  --horizon-opacity: 0.5;
 }
 
 .workspace-backdrop-day {
@@ -97,8 +93,6 @@ body {
   --sun-opacity: 0.95;
   --moon-opacity: 0.16;
   --comet-opacity: 0.34;
-  --moon-mask: rgba(222, 244, 255, 0.96);
-  --horizon-opacity: 0.82;
 }
 
 .workspace-backdrop::before {
@@ -108,6 +102,7 @@ body {
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 225, 151, 0.32), transparent 24%),
     radial-gradient(circle at 72% 12%, rgba(124, 188, 220, 0.24), transparent 26%),
+    radial-gradient(ellipse at 50% 118%, rgba(255, 255, 255, 0.28), transparent 46%),
     radial-gradient(circle at var(--cursor-x) var(--cursor-y), rgba(255, 255, 255, 0.28), transparent 20%);
   transform: translate3d(var(--sky-soft-x), var(--sky-soft-y), 0);
   animation: workspace-aurora-drift 22s ease-in-out infinite alternate;
@@ -161,50 +156,64 @@ body {
 }
 
 .workspace-comet {
+  --comet-angle: -12deg;
+  --comet-start-y: 0vh;
+  --comet-end-y: 24vh;
   position: absolute;
   z-index: 2;
-  height: 2px;
-  width: 180px;
+  height: 1px;
+  width: 220px;
   border-radius: 999px;
   opacity: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.26) 28%, rgba(255, 255, 255, 0.96) 100%);
-  box-shadow: 0 0 16px rgba(255, 255, 255, 0.62);
-  filter: drop-shadow(0 0 10px rgba(255, 222, 145, 0.36));
-  animation: workspace-comet-flight 13s linear infinite;
+  background: linear-gradient(90deg, transparent 0%, rgba(198, 223, 255, 0.16) 26%, rgba(255, 255, 255, 0.88) 88%, rgba(255, 255, 255, 0.98) 100%);
+  box-shadow:
+    0 0 12px rgba(255, 255, 255, 0.46),
+    0 0 26px rgba(143, 185, 255, 0.18);
+  filter: drop-shadow(0 0 8px rgba(255, 222, 145, 0.22));
+  animation: workspace-comet-flight 28s cubic-bezier(0.25, 0.02, 0.25, 1) infinite;
 }
 
 .workspace-comet::after {
   content: '';
   position: absolute;
-  right: -3px;
+  right: -2px;
   top: 50%;
-  height: 8px;
-  width: 8px;
+  height: 5px;
+  width: 5px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.98);
   transform: translateY(-50%);
 }
 
 .workspace-comet-one {
+  --comet-angle: -13deg;
+  --comet-start-y: -4vh;
+  --comet-end-y: 18vh;
   left: -22%;
-  top: 12%;
-  animation-delay: -1s;
+  top: 18%;
+  animation-delay: -3s;
 }
 
 .workspace-comet-two {
+  --comet-angle: -9deg;
+  --comet-start-y: 1vh;
+  --comet-end-y: 16vh;
   left: -18%;
-  top: 35%;
-  width: 138px;
-  animation-delay: -6s;
-  animation-duration: 16s;
+  top: 38%;
+  width: 170px;
+  animation-delay: -14s;
+  animation-duration: 34s;
 }
 
 .workspace-comet-three {
+  --comet-angle: -16deg;
+  --comet-start-y: 0vh;
+  --comet-end-y: 28vh;
   left: -28%;
-  top: 62%;
-  width: 210px;
-  animation-delay: -10s;
-  animation-duration: 19s;
+  top: 8%;
+  width: 260px;
+  animation-delay: -24s;
+  animation-duration: 42s;
 }
 
 .workspace-celestial-layer {
@@ -254,58 +263,37 @@ body {
   width: clamp(64px, 8vw, 112px);
   opacity: var(--moon-opacity);
   background:
-    radial-gradient(circle at 37% 32%, #ffffff 0 16%, #e9edf4 48%, #b8c5d6 100%);
+    radial-gradient(circle at 31% 28%, rgba(255, 255, 255, 0.98) 0 12%, transparent 13%),
+    radial-gradient(circle at 66% 34%, rgba(151, 163, 181, 0.38) 0 6%, transparent 7%),
+    radial-gradient(circle at 43% 62%, rgba(137, 150, 171, 0.36) 0 8%, transparent 9%),
+    radial-gradient(circle at 70% 72%, rgba(159, 174, 194, 0.3) 0 5%, transparent 6%),
+    radial-gradient(circle at 38% 38%, #ffffff 0 22%, #edf1f6 48%, #b9c3d0 78%, #8d9aaa 100%);
   box-shadow:
-    0 0 30px rgba(229, 237, 255, 0.74),
-    0 0 96px rgba(172, 194, 255, 0.36);
+    inset -15px -11px 22px rgba(83, 94, 114, 0.3),
+    inset 12px 10px 18px rgba(255, 255, 255, 0.5),
+    0 0 24px rgba(229, 237, 255, 0.62),
+    0 0 92px rgba(172, 194, 255, 0.34);
   animation: workspace-moon-path 32s ease-in-out infinite alternate;
+}
+
+.workspace-moon::before {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 24% 52%, rgba(106, 119, 142, 0.2) 0 6%, transparent 7%),
+    radial-gradient(circle at 58% 22%, rgba(106, 119, 142, 0.18) 0 4%, transparent 5%),
+    radial-gradient(circle at 72% 54%, rgba(255, 255, 255, 0.25) 0 5%, transparent 6%);
+  mix-blend-mode: multiply;
 }
 
 .workspace-moon::after {
   content: '';
   position: absolute;
-  inset: 8% 4% 8% 32%;
+  inset: -16%;
   border-radius: inherit;
-  background: var(--moon-mask);
-  box-shadow: -14px 0 18px rgba(255, 255, 255, 0.16) inset;
-}
-
-.workspace-horizon {
-  position: absolute;
-  left: 50%;
-  bottom: -11%;
-  z-index: 1;
-  display: flex;
-  height: 34vh;
-  width: min(1120px, 92vw);
-  align-items: flex-end;
-  justify-content: center;
-  gap: 2.5%;
-  opacity: var(--horizon-opacity);
-  transform: translateX(-50%);
-}
-
-.workspace-horizon span {
-  display: block;
-  height: 100%;
-  flex: 1;
-  border-radius: 999px 999px 0 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.04)),
-    rgba(255, 255, 255, 0.16);
-  filter: blur(0.2px);
-}
-
-.workspace-horizon span:nth-child(1) {
-  height: 52%;
-}
-
-.workspace-horizon span:nth-child(2) {
-  height: 82%;
-}
-
-.workspace-horizon span:nth-child(3) {
-  height: 62%;
+  background: radial-gradient(circle at 32% 34%, transparent 43%, rgba(255, 255, 255, 0.18) 45%, transparent 72%);
 }
 
 .auth-preview-card,
@@ -403,17 +391,20 @@ body {
 @keyframes workspace-comet-flight {
   0% {
     opacity: 0;
-    transform: translate3d(-12vw, -8vh, 0) rotate(-24deg);
+    transform: translate3d(-18vw, var(--comet-start-y), 0) rotate(var(--comet-angle));
   }
-  8% {
-    opacity: var(--comet-opacity);
-  }
-  32% {
-    opacity: var(--comet-opacity);
-  }
-  52%, 100% {
+  12% {
     opacity: 0;
-    transform: translate3d(132vw, 54vh, 0) rotate(-24deg);
+  }
+  20% {
+    opacity: var(--comet-opacity);
+  }
+  46% {
+    opacity: var(--comet-opacity);
+  }
+  64%, 100% {
+    opacity: 0;
+    transform: translate3d(128vw, var(--comet-end-y), 0) rotate(var(--comet-angle));
   }
 }
 
