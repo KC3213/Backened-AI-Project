@@ -1,8 +1,29 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import axios from '../config/axios'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../context/userContext'
 import { getErrorMessage } from '../utils/getErrorMessage'
+
+const pendingTaskColumns = [
+    { key: 'todo', label: 'To do' },
+    { key: 'in-progress', label: 'In progress' },
+    { key: 'review', label: 'Review' },
+]
+
+const priorityClasses = {
+    low: 'bg-slate-100 text-slate-700',
+    medium: 'bg-blue-100 text-blue-700',
+    high: 'bg-amber-100 text-amber-700',
+    urgent: 'bg-red-100 text-red-700',
+}
+
+const getMemberId = (member) => {
+    if (!member) {
+        return ''
+    }
+
+    return typeof member === 'object' ? member._id?.toString() : member.toString()
+}
 
 const Home = () => {
     const [ isModalOpen, setIsModalOpen ] = useState(false)
@@ -15,6 +36,34 @@ const Home = () => {
     const [ projects, setProjects ] = useState([])
     const { user, logout } = useUser()
     const navigate = useNavigate()
+    const currentUserId = user?._id?.toString()
+
+    const pendingTasksByStatus = useMemo(() => {
+        const groupedTasks = pendingTaskColumns.reduce((acc, column) => {
+            acc[ column.key ] = []
+            return acc
+        }, {})
+
+        projects.forEach(project => {
+            project.tickets?.forEach(ticket => {
+                if (ticket.status === 'done' || getMemberId(ticket.assignee) !== currentUserId) {
+                    return
+                }
+
+                groupedTasks[ ticket.status ]?.push({
+                    ...ticket,
+                    projectId: project._id,
+                    projectName: project.name,
+                })
+            })
+        })
+
+        return groupedTasks
+    }, [ currentUserId, projects ])
+
+    const pendingTaskCount = useMemo(() => {
+        return pendingTaskColumns.reduce((count, column) => count + pendingTasksByStatus[ column.key ].length, 0)
+    }, [ pendingTasksByStatus ])
 
     const loadProjects = useCallback(async () => {
         setProjectError('')
@@ -106,6 +155,47 @@ const Home = () => {
             </header>
 
             <section className='mx-auto grid max-w-7xl gap-4 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px]'>
+                <section className='min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2 sm:p-5'>
+                    <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+                        <div>
+                            <h2 className='text-lg font-semibold'>My pending tasks</h2>
+                            <p className='mt-1 text-sm text-slate-500'>{pendingTaskCount} assigned across projects</p>
+                        </div>
+                        <span className='rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500'>{pendingTaskCount}</span>
+                    </div>
+
+                    {pendingTaskCount ? (
+                        <div className='overflow-x-auto'>
+                            <div className='grid min-w-[840px] grid-cols-3 gap-3'>
+                                {pendingTaskColumns.map(column => (
+                                    <div key={column.key} className='min-h-52 rounded-lg bg-slate-100 p-3'>
+                                        <div className='mb-3 flex items-center justify-between'>
+                                            <h3 className='text-sm font-semibold'>{column.label}</h3>
+                                            <span className='rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500'>{pendingTasksByStatus[ column.key ].length}</span>
+                                        </div>
+                                        <div className='space-y-3'>
+                                            {pendingTasksByStatus[ column.key ].map(task => (
+                                                <button
+                                                    key={`${task.projectId}-${task._id}`}
+                                                    onClick={() => navigate(`/project/${task.projectId}`)}
+                                                    className='block w-full rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md'>
+                                                    <div className='mb-2 flex items-start justify-between gap-2'>
+                                                        <h4 className='text-sm font-semibold leading-5'>{task.title}</h4>
+                                                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityClasses[ task.priority ] || priorityClasses.medium}`}>{task.priority || 'medium'}</span>
+                                                    </div>
+                                                    <div className='text-xs font-medium text-slate-500'>{task.projectName}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <p className='rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-500'>No pending assigned tasks.</p>
+                    )}
+                </section>
+
                 <div className='min-w-0'>
                     <div className='mb-4 flex items-center justify-between'>
                         <h2 className='text-lg font-semibold'>Active projects</h2>

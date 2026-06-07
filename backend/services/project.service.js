@@ -125,9 +125,13 @@ export const getAllProjectByUserId = async ({ userId }) => {
     const allUserProjects = await projectModel.find({
         users: userId
     })
-        .populate('owner', 'email')
 
     await Promise.all(allUserProjects.map(project => ensureProjectDefaults(project)))
+    await projectModel.populate(allUserProjects, [
+        { path: 'owner', select: 'email' },
+        { path: 'tickets.assignee', select: 'email' },
+        { path: 'tickets.createdBy', select: 'email' },
+    ])
 
     return allUserProjects
 }
