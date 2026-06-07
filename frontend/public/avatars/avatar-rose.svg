@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Rose avatar">
+  <rect width="120" height="120" rx="60" fill="#fcebeb"/>
+  <circle cx="60" cy="56" r="30" fill="#b65b68"/>
+  <path d="M36 45c8-19 45-25 58 4-24-5-39-5-58 0z" fill="#5f2f38"/>
+  <circle cx="49" cy="57" r="5" fill="#fff6f6"/>
+  <circle cx="72" cy="57" r="5" fill="#fff6f6"/>
+  <path d="M49 74c6 4 17 4 23 0" fill="none" stroke="#fff6f6" stroke-width="6" stroke-linecap="round"/>
+  <path d="M28 107c8-20 25-31 52-25 15 4 25 13 32 27a60 60 0 0 1-84-2z" fill="#a32d2d"/>
+</svg>

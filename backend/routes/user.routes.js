@@ -21,6 +21,10 @@ router.post('/login',
     body('password').isLength({ min: 3 }).withMessage('Password must be at least 3 characters long'),
     userController.loginController);
 
+router.post('/google',
+    body('credential').isString().notEmpty().withMessage('Google credential is required'),
+    userController.googleLoginController);
+
 router.get('/profile', authMiddleware.authUser, userController.profileController);
 
 

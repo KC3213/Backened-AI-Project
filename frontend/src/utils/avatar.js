@@ -1,13 +1,30 @@
 export const avatarStyles = [
-    { id: 'adventurer', label: 'Adventurer' },
-    { id: 'avataaars', label: 'Classic' },
-    { id: 'bottts', label: 'Bot' },
-    { id: 'lorelei', label: 'Soft' },
-    { id: 'notionists', label: 'Notion' },
-    { id: 'pixel-art', label: 'Pixel' },
+    { id: 'avatar-blue', label: 'Blue', path: '/avatars/avatar-blue.svg' },
+    { id: 'avatar-green', label: 'Green', path: '/avatars/avatar-green.svg' },
+    { id: 'avatar-gold', label: 'Gold', path: '/avatars/avatar-gold.svg' },
+    { id: 'avatar-rose', label: 'Rose', path: '/avatars/avatar-rose.svg' },
+    { id: 'avatar-indigo', label: 'Indigo', path: '/avatars/avatar-indigo.svg' },
+    { id: 'avatar-slate', label: 'Slate', path: '/avatars/avatar-slate.svg' },
 ]
 
 export const fallbackAvatarStyle = avatarStyles[ 0 ].id
+
+const legacyAvatarMap = {
+    adventurer: 'avatar-blue',
+    avataaars: 'avatar-green',
+    bottts: 'avatar-gold',
+    lorelei: 'avatar-rose',
+    notionists: 'avatar-indigo',
+    'pixel-art': 'avatar-slate',
+}
+
+export const resolveAvatarStyle = (style) => {
+    const localStyle = legacyAvatarMap[ style ] || style
+
+    return avatarStyles.some(option => option.id === localStyle)
+        ? localStyle
+        : fallbackAvatarStyle
+}
 
 export const getDisplayName = (user = {}) => {
     if (user?.name?.trim()) {
@@ -29,20 +46,18 @@ export const getInitials = (user = {}) => {
     return displayName.slice(0, 2).toUpperCase() || 'U'
 }
 
-export const buildAvatarUrl = ({ style = fallbackAvatarStyle, seed = 'User' } = {}) => {
-    const safeStyle = avatarStyles.some(option => option.id === style) ? style : fallbackAvatarStyle
-    const safeSeed = encodeURIComponent(seed || 'User')
+export const buildAvatarUrl = ({ style = fallbackAvatarStyle } = {}) => {
+    const safeStyle = resolveAvatarStyle(style)
 
-    return `https://api.dicebear.com/9.x/${safeStyle}/svg?seed=${safeSeed}&radius=50&backgroundColor=f0efe9,eaf3de,faeeda,fcebeb`
+    return avatarStyles.find(option => option.id === safeStyle)?.path || avatarStyles[ 0 ].path
 }
 
 export const getAvatarUrl = (user = {}) => {
-    if (user?.avatar?.url) {
+    if (user?.avatar?.url?.startsWith('/avatars/')) {
         return user.avatar.url
     }
 
     return buildAvatarUrl({
         style: user?.avatar?.style,
-        seed: user?.avatar?.seed || getDisplayName(user) || user?.email,
     })
 }

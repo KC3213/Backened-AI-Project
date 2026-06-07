@@ -5,20 +5,29 @@ import axios from '../config/axios'
 import { useUser } from '../context/userContext'
 import { getErrorMessage } from '../utils/getErrorMessage'
 import { fallbackAvatarStyle } from '../utils/avatar'
+import { requestGoogleCredential } from '../utils/googleAuth'
 
 const Register = () => {
+    const [ registrationStep, setRegistrationStep ] = useState('account')
     const [ name, setName ] = useState('')
     const [ email, setEmail ] = useState('')
     const [ password, setPassword ] = useState('')
     const [ avatarStyle, setAvatarStyle ] = useState(fallbackAvatarStyle)
     const [ error, setError ] = useState('')
     const [ isSubmitting, setIsSubmitting ] = useState(false)
+    const [ isGoogleSubmitting, setIsGoogleSubmitting ] = useState(false)
     const { startSession } = useUser()
     const navigate = useNavigate()
 
     const submitHandler = async (event) => {
         event.preventDefault()
         setError('')
+
+        if (registrationStep === 'account') {
+            setRegistrationStep('profile')
+            return
+        }
+
         setIsSubmitting(true)
 
         try {
@@ -39,6 +48,23 @@ const Register = () => {
         }
     }
 
+    const handleGoogleLogin = async () => {
+        setError('')
+        setIsGoogleSubmitting(true)
+
+        try {
+            const credential = await requestGoogleCredential(import.meta.env.VITE_GOOGLE_CLIENT_ID)
+            const res = await axios.post('/users/google', { credential })
+
+            startSession(res.data)
+            navigate('/', { replace: true })
+        } catch (err) {
+            setError(getErrorMessage(err, 'Could not continue with Google'))
+        } finally {
+            setIsGoogleSubmitting(false)
+        }
+    }
+
     return (
         <AuthForm
             title='Register'
@@ -52,10 +78,14 @@ const Register = () => {
             avatarStyle={avatarStyle}
             error={error}
             isSubmitting={isSubmitting}
+            isGoogleSubmitting={isGoogleSubmitting}
+            registrationStep={registrationStep}
             onNameChange={setName}
             onEmailChange={setEmail}
             onPasswordChange={setPassword}
             onAvatarStyleChange={setAvatarStyle}
+            onRegistrationBack={() => setRegistrationStep('account')}
+            onGoogleLogin={handleGoogleLogin}
             onSubmit={submitHandler}
         />
     )

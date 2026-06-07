@@ -1,21 +1,52 @@
 import userModel from '../models/user.model.js';
 
 const avatarStyles = new Set([
-    'adventurer',
-    'avataaars',
-    'bottts',
-    'lorelei',
-    'notionists',
-    'pixel-art',
+    'avatar-blue',
+    'avatar-green',
+    'avatar-gold',
+    'avatar-rose',
+    'avatar-indigo',
+    'avatar-slate',
 ])
 
-const fallbackAvatarStyle = 'adventurer'
+const avatarStyleList = Array.from(avatarStyles)
+const fallbackAvatarStyle = 'avatar-blue'
 
-const buildAvatarUrl = ({ style, seed }) => {
-    const safeStyle = avatarStyles.has(style) ? style : fallbackAvatarStyle
-    const safeSeed = encodeURIComponent(seed || 'User')
+const legacyAvatarMap = {
+    adventurer: 'avatar-blue',
+    avataaars: 'avatar-green',
+    bottts: 'avatar-gold',
+    lorelei: 'avatar-rose',
+    notionists: 'avatar-indigo',
+    'pixel-art': 'avatar-slate',
+}
 
-    return `https://api.dicebear.com/9.x/${safeStyle}/svg?seed=${safeSeed}&radius=50&backgroundColor=f0efe9,eaf3de,faeeda,fcebeb`
+const resolveAvatarStyle = (style) => {
+    const localStyle = legacyAvatarMap[ style ] || style
+
+    return avatarStyles.has(localStyle) ? localStyle : fallbackAvatarStyle
+}
+
+const pickAvatarStyle = (seed = '') => {
+    const total = seed.split('').reduce((sum, character) => sum + character.charCodeAt(0), 0)
+
+    return avatarStyleList[ total % avatarStyleList.length ] || fallbackAvatarStyle
+}
+
+const buildAvatarUrl = ({ style }) => {
+    const safeStyle = resolveAvatarStyle(style)
+
+    return `/avatars/${safeStyle}.svg`
+}
+
+const buildAvatar = ({ style, seed }) => {
+    const safeStyle = resolveAvatarStyle(style || pickAvatarStyle(seed))
+
+    return {
+        style: safeStyle,
+        seed: seed || '',
+        url: buildAvatarUrl({ style: safeStyle }),
+    }
 }
 
 export const createUser = async ({
@@ -29,22 +60,71 @@ export const createUser = async ({
     }
 
     const hashedPassword = await userModel.hashPassword(password);
-    const avatar = {
-        style: avatarStyles.has(avatarStyle) ? avatarStyle : fallbackAvatarStyle,
+    const avatar = buildAvatar({
+        style: avatarStyle,
         seed: (avatarSeed || trimmedName || email).trim(),
-    }
-
-    avatar.url = buildAvatarUrl(avatar)
+    })
 
     const user = await userModel.create({
         name: trimmedName,
         email,
         password: hashedPassword,
         avatar,
+        authProvider: 'local',
     });
 
     return user;
 
+}
+
+export const findOrCreateGoogleUser = async ({ email, name, googleId }) => {
+    if (!email) {
+        throw new Error('Google account email is required')
+    }
+
+    const normalizedEmail = email.trim().toLowerCase()
+    const displayName = name?.trim() || normalizedEmail.split('@')[ 0 ]
+    let user = await userModel.findOne({ email: normalizedEmail })
+
+    if (user) {
+        let shouldSave = false
+
+        if (!user.name) {
+            user.name = displayName
+            shouldSave = true
+        }
+
+        if (!user.googleId && googleId) {
+            user.googleId = googleId
+            shouldSave = true
+        }
+
+        if (!user.avatar?.url?.startsWith('/avatars/')) {
+            user.avatar = buildAvatar({
+                style: user.avatar?.style,
+                seed: displayName || normalizedEmail,
+            })
+            shouldSave = true
+        }
+
+        if (shouldSave) {
+            await user.save()
+        }
+
+        return user
+    }
+
+    user = await userModel.create({
+        name: displayName,
+        email: normalizedEmail,
+        googleId,
+        authProvider: 'google',
+        avatar: buildAvatar({
+            seed: displayName || normalizedEmail,
+        }),
+    })
+
+    return user
 }
 
 export const getAllUsers = async ({ userId }) => {

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Slate avatar">
+  <rect width="120" height="120" rx="60" fill="#e8e7e0"/>
+  <circle cx="60" cy="57" r="31" fill="#888780"/>
+  <path d="M33 47c10-22 52-25 66 3-26-7-45-7-66 0z" fill="#2c2c2a"/>
+  <circle cx="48" cy="58" r="5" fill="#f8f8f5"/>
+  <circle cx="73" cy="58" r="5" fill="#f8f8f5"/>
+  <path d="M49 76c8 6 17 6 25 0" fill="none" stroke="#f8f8f5" stroke-width="6" stroke-linecap="round"/>
+  <path d="M25 108c8-20 26-31 50-27 15 3 27 12 34 28a60 60 0 0 1-84-1z" fill="#2c2c2a"/>
+</svg>

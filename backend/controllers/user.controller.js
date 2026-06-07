@@ -83,6 +83,59 @@ export const loginController = async (req, res) => {
     }
 }
 
+export const googleLoginController = async (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const { credential } = req.body;
+
+        if (!process.env.GOOGLE_CLIENT_ID) {
+            return res.status(400).json({
+                error: 'Google sign-in is not configured'
+            });
+        }
+
+        const googleResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+
+        if (!googleResponse.ok) {
+            return res.status(401).json({
+                error: 'Invalid Google credential'
+            });
+        }
+
+        const googleProfile = await googleResponse.json();
+
+        if (googleProfile.aud !== process.env.GOOGLE_CLIENT_ID) {
+            return res.status(401).json({
+                error: 'Google credential audience mismatch'
+            });
+        }
+
+        if (googleProfile.email_verified !== 'true' && googleProfile.email_verified !== true) {
+            return res.status(401).json({
+                error: 'Google email is not verified'
+            });
+        }
+
+        const user = await userService.findOrCreateGoogleUser({
+            email: googleProfile.email,
+            name: googleProfile.name,
+            googleId: googleProfile.sub,
+        });
+
+        const token = await user.generateJWT();
+
+        res.status(200).json({ user, token });
+    } catch (err) {
+        console.log(err);
+        res.status(400).send(err.message);
+    }
+}
+
 export const profileController = async (req, res) => {
 
     res.status(200).json({

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Gold avatar">
+  <rect width="120" height="120" rx="60" fill="#faeeda"/>
+  <circle cx="60" cy="57" r="30" fill="#b78d45"/>
+  <path d="M31 58c2-23 17-37 39-34 16 2 26 13 29 31-16-8-34-13-68 3z" fill="#2c2c2a"/>
+  <circle cx="48" cy="59" r="5" fill="#fff8ed"/>
+  <circle cx="73" cy="59" r="5" fill="#fff8ed"/>
+  <path d="M50 75c7 5 15 5 22 0" fill="none" stroke="#fff8ed" stroke-width="6" stroke-linecap="round"/>
+  <path d="M25 108c9-22 29-31 55-24 12 3 22 12 28 26a60 60 0 0 1-83-2z" fill="#854f0b"/>
+</svg>

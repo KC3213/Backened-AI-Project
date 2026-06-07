@@ -21,14 +21,21 @@ const AuthForm = ({
     avatarStyle,
     error,
     isSubmitting,
+    isGoogleSubmitting,
+    registrationStep = 'account',
     onNameChange,
     onEmailChange,
     onPasswordChange,
     onAvatarStyleChange,
+    onRegistrationBack,
+    onGoogleLogin,
     onSubmit,
 }) => {
     const isRegister = submitLabel !== 'Login'
+    const isProfileStep = isRegister && registrationStep === 'profile'
+    const isAccountStep = isRegister && registrationStep === 'account'
     const heading = submitLabel === 'Login' ? 'Welcome back.' : title || 'Create account.'
+    const primaryLabel = isAccountStep ? 'Continue' : submitLabel
 
     return (
         <main className='workspace-page flex min-h-screen items-center justify-center px-4 py-7 text-[#2c2c2a] sm:px-6 lg:py-10'>
@@ -52,6 +59,64 @@ const AuthForm = ({
 
                     <form onSubmit={onSubmit} className='space-y-5'>
                         {isRegister && (
+                            <div className='rounded-full bg-[#f8f8f5] px-3 py-1 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888780]'>
+                                Step {isProfileStep ? '2' : '1'} of 2
+                            </div>
+                        )}
+
+                        {!isProfileStep && (
+                            <>
+                                {onGoogleLogin && (
+                                    <button
+                                        type='button'
+                                        onClick={onGoogleLogin}
+                                        disabled={isSubmitting || isGoogleSubmitting}
+                                        className='inline-flex w-full items-center justify-center gap-2 rounded-[12px] border-[0.5px] border-[#d3d1c7] bg-white px-4 py-[13px] text-sm font-medium text-[#2c2c2a] transition hover:-translate-y-0.5 hover:bg-[#f8f8f5] disabled:cursor-not-allowed disabled:text-[#b4b2a9]'
+                                    >
+                                        <i className='ri-google-fill text-base'></i>
+                                        {isGoogleSubmitting ? 'Connecting...' : 'Continue with Google'}
+                                    </button>
+                                )}
+
+                                {onGoogleLogin && (
+                                    <div className='flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.08em] text-[#b4b2a9]'>
+                                        <span className='h-px flex-1 bg-[#e8e7e0]'></span>
+                                        or
+                                        <span className='h-px flex-1 bg-[#e8e7e0]'></span>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className='mb-1.5 block text-[12px] font-medium uppercase tracking-[0.04em] text-[#5f5e5a]' htmlFor='email'>Email</label>
+                                    <input
+                                        id='email'
+                                        value={email}
+                                        onChange={(event) => onEmailChange(event.target.value)}
+                                        type='email'
+                                        autoComplete='email'
+                                        className='block w-full rounded-[12px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-4 py-[14px] text-[15px] text-[#2c2c2a] outline-none placeholder:text-[#b4b2a9] focus:border-[#888780] focus:bg-white'
+                                        placeholder='name@example.com'
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className='mb-1.5 block text-[12px] font-medium uppercase tracking-[0.04em] text-[#5f5e5a]' htmlFor='password'>Password</label>
+                                    <input
+                                        id='password'
+                                        value={password}
+                                        onChange={(event) => onPasswordChange(event.target.value)}
+                                        type='password'
+                                        autoComplete={submitLabel === 'Login' ? 'current-password' : 'new-password'}
+                                        className='block w-full rounded-[12px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-4 py-[14px] text-[15px] text-[#2c2c2a] outline-none placeholder:text-[#b4b2a9] focus:border-[#888780] focus:bg-white'
+                                        placeholder='Enter your password'
+                                        required
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {isProfileStep && (
                             <div>
                                 <label className='mb-1.5 block text-[12px] font-medium uppercase tracking-[0.04em] text-[#5f5e5a]' htmlFor='name'>Name</label>
                                 <input
@@ -68,38 +133,8 @@ const AuthForm = ({
                             </div>
                         )}
 
-                        <div>
-                            <label className='mb-1.5 block text-[12px] font-medium uppercase tracking-[0.04em] text-[#5f5e5a]' htmlFor='email'>Email</label>
-                            <input
-                                id='email'
-                                value={email}
-                                onChange={(event) => onEmailChange(event.target.value)}
-                                type='email'
-                                autoComplete='email'
-                                className='block w-full rounded-[12px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-4 py-[14px] text-[15px] text-[#2c2c2a] outline-none placeholder:text-[#b4b2a9] focus:border-[#888780] focus:bg-white'
-                                placeholder='name@example.com'
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label className='mb-1.5 block text-[12px] font-medium uppercase tracking-[0.04em] text-[#5f5e5a]' htmlFor='password'>Password</label>
-                            <input
-                                id='password'
-                                value={password}
-                                onChange={(event) => onPasswordChange(event.target.value)}
-                                type='password'
-                                autoComplete={submitLabel === 'Login' ? 'current-password' : 'new-password'}
-                                className='block w-full rounded-[12px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-4 py-[14px] text-[15px] text-[#2c2c2a] outline-none placeholder:text-[#b4b2a9] focus:border-[#888780] focus:bg-white'
-                                placeholder='Enter your password'
-                                required
-                            />
-                        </div>
-
-                        {isRegister && (
+                        {isProfileStep && (
                             <AvatarPicker
-                                name={name}
-                                email={email}
                                 selectedStyle={avatarStyle}
                                 onSelect={onAvatarStyleChange}
                             />
@@ -109,13 +144,24 @@ const AuthForm = ({
                             <p className='rounded-[10px] bg-[#fcebeb] px-3 py-2 text-sm text-[#a32d2d]'>{error}</p>
                         )}
 
-                        <button
-                            type='submit'
-                            disabled={isSubmitting}
-                            className='w-full rounded-[12px] bg-[#2c2c2a] px-4 py-[15px] text-sm font-medium tracking-[0.02em] text-[#f0efe9] transition hover:-translate-y-0.5 hover:bg-[#444441] hover:shadow-lg disabled:cursor-not-allowed disabled:bg-[#b4b2a9]'
-                        >
-                            {isSubmitting ? 'Please wait...' : submitLabel}
-                        </button>
+                        <div className='flex gap-2'>
+                            {isProfileStep && (
+                                <button
+                                    type='button'
+                                    onClick={onRegistrationBack}
+                                    className='rounded-[12px] border-[0.5px] border-[#d3d1c7] bg-white px-4 py-[15px] text-sm font-medium text-[#2c2c2a] transition hover:bg-[#f8f8f5]'
+                                >
+                                    Back
+                                </button>
+                            )}
+                            <button
+                                type='submit'
+                                disabled={isSubmitting}
+                                className='flex-1 rounded-[12px] bg-[#2c2c2a] px-4 py-[15px] text-sm font-medium tracking-[0.02em] text-[#f0efe9] transition hover:-translate-y-0.5 hover:bg-[#444441] hover:shadow-lg disabled:cursor-not-allowed disabled:bg-[#b4b2a9]'
+                            >
+                                {isSubmitting ? 'Please wait...' : primaryLabel}
+                            </button>
+                        </div>
                     </form>
 
                     <p className='mt-6 text-center text-[13px] text-[#888780]'>
