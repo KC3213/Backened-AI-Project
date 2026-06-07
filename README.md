@@ -107,6 +107,8 @@ See [docs/DEVREV_WORKFLOW_UPDATES.md](docs/DEVREV_WORKFLOW_UPDATES.md) for the s
 
 See [docs/CHAT_REFRESH_AUTHOR_FIX.md](docs/CHAT_REFRESH_AUTHOR_FIX.md) for the chat refresh issue where saved messages could render as another user's message.
 
+See [docs/CHAT_AND_WORKFLOW_ARCHITECTURE.md](docs/CHAT_AND_WORKFLOW_ARCHITECTURE.md) for the fresher-to-professional explanation of how the chat, sprint board, task board, bottlenecks, and scaling plan work.
+
 ## Troubleshooting
 
 - If protected routes return `Unauthorized User`, confirm the frontend has a token in local storage and `VITE_API_URL` points to the backend.
