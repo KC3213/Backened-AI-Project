@@ -36,135 +36,276 @@ body {
   isolation: isolate;
   overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(240, 239, 233, 0.86)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.54), rgba(240, 239, 233, 0.78)),
     #f0efe9;
 }
 
 .workspace-backdrop {
+  --sky-x: 0px;
+  --sky-y: 0px;
+  --sky-soft-x: 0px;
+  --sky-soft-y: 0px;
+  --sky-sweep-x: 0px;
+  --sky-sweep-y: 0px;
+  --star-mid-x: 0px;
+  --star-mid-y: 0px;
+  --star-near-x: 0px;
+  --star-near-y: 0px;
+  --orbit-x: 0px;
+  --orbit-y: 0px;
+  --cursor-x: 50%;
+  --cursor-y: 50%;
+  --sky-top: #dceffc;
+  --sky-mid: #fff0c7;
+  --sky-low: #f0efe9;
+  --star-opacity: 0.28;
+  --star-opacity-low: 0.14;
+  --sun-opacity: 0.92;
+  --moon-opacity: 0.18;
+  --comet-opacity: 0.42;
+  --moon-mask: rgba(222, 239, 249, 0.96);
+  --horizon-opacity: 0.78;
   position: absolute;
   inset: 0;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  background:
+    radial-gradient(circle at var(--cursor-x) var(--cursor-y), rgba(255, 255, 255, 0.36), transparent 22%),
+    linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 50%, var(--sky-low) 100%);
+}
+
+.workspace-backdrop-night {
+  --sky-top: #070c1f;
+  --sky-mid: #111a35;
+  --sky-low: #26354e;
+  --star-opacity: 0.9;
+  --star-opacity-low: 0.5;
+  --sun-opacity: 0.18;
+  --moon-opacity: 0.92;
+  --comet-opacity: 0.82;
+  --moon-mask: rgba(9, 14, 32, 0.98);
+  --horizon-opacity: 0.5;
+}
+
+.workspace-backdrop-day {
+  --sky-top: #dff5ff;
+  --sky-mid: #ffeec1;
+  --sky-low: #efece3;
+  --star-opacity: 0.24;
+  --star-opacity-low: 0.12;
+  --sun-opacity: 0.95;
+  --moon-opacity: 0.16;
+  --comet-opacity: 0.34;
+  --moon-mask: rgba(222, 244, 255, 0.96);
+  --horizon-opacity: 0.82;
 }
 
 .workspace-backdrop::before {
   content: '';
   position: absolute;
-  inset: -18%;
-  opacity: 0.44;
-  background-image:
-    linear-gradient(rgba(44, 44, 42, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(44, 44, 42, 0.06) 1px, transparent 1px);
-  background-size: 46px 46px;
-  transform: rotate(-8deg);
-  animation: workspace-grid-drift 24s linear infinite;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 225, 151, 0.32), transparent 24%),
+    radial-gradient(circle at 72% 12%, rgba(124, 188, 220, 0.24), transparent 26%),
+    radial-gradient(circle at var(--cursor-x) var(--cursor-y), rgba(255, 255, 255, 0.28), transparent 20%);
+  transform: translate3d(var(--sky-soft-x), var(--sky-soft-y), 0);
+  animation: workspace-aurora-drift 22s ease-in-out infinite alternate;
 }
 
 .workspace-backdrop::after {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -16%;
   background:
-    linear-gradient(120deg, transparent 8%, rgba(71, 106, 126, 0.12) 31%, transparent 48%),
-    linear-gradient(28deg, transparent 12%, rgba(183, 141, 69, 0.12) 54%, transparent 72%);
-  transform: translateX(-18%);
+    linear-gradient(115deg, transparent 10%, rgba(255, 255, 255, 0.18) 31%, transparent 48%),
+    linear-gradient(24deg, transparent 18%, rgba(255, 207, 112, 0.18) 55%, transparent 72%);
+  transform: translate3d(var(--sky-sweep-x), var(--sky-sweep-y), 0);
   animation: workspace-light-sweep 18s ease-in-out infinite alternate;
 }
 
-.workspace-rail {
+.workspace-star-field {
   position: absolute;
-  height: 1px;
-  width: 260px;
+  inset: -14%;
+  opacity: var(--star-opacity);
+  transform: translate3d(var(--sky-x), var(--sky-y), 0);
+  animation: workspace-star-twinkle 4.8s ease-in-out infinite alternate;
+}
+
+.workspace-stars-far {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.88) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(255, 229, 154, 0.62) 0 1px, transparent 1.7px);
+  background-position: 0 0, 64px 86px;
+  background-size: 148px 148px, 214px 214px;
+}
+
+.workspace-stars-mid {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.76) 0 1px, transparent 1.8px),
+    radial-gradient(circle, rgba(165, 214, 241, 0.62) 0 1.2px, transparent 2px);
+  background-position: 36px 52px, 116px 24px;
+  background-size: 198px 198px, 284px 284px;
+  transform: translate3d(var(--star-mid-x), var(--star-mid-y), 0);
+  animation-duration: 6.2s;
+}
+
+.workspace-stars-near {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.94) 0 1.4px, transparent 2.2px),
+    radial-gradient(circle, rgba(255, 223, 141, 0.72) 0 1.1px, transparent 2px);
+  background-position: 82px 18px, 8px 126px;
+  background-size: 270px 270px, 330px 330px;
+  transform: translate3d(var(--star-near-x), var(--star-near-y), 0);
+  animation-duration: 7.4s;
+}
+
+.workspace-comet {
+  position: absolute;
+  z-index: 2;
+  height: 2px;
+  width: 180px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(44, 44, 42, 0.42), transparent);
-  opacity: 0.5;
-  animation: workspace-rail-slide 11s ease-in-out infinite;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.26) 28%, rgba(255, 255, 255, 0.96) 100%);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.62);
+  filter: drop-shadow(0 0 10px rgba(255, 222, 145, 0.36));
+  animation: workspace-comet-flight 13s linear infinite;
 }
 
-.workspace-rail-one {
-  left: 8%;
-  top: 18%;
-}
-
-.workspace-rail-two {
-  right: 9%;
-  top: 44%;
-  width: 340px;
-  animation-delay: -4s;
-}
-
-.workspace-rail-three {
-  left: 28%;
-  bottom: 14%;
-  width: 300px;
-  animation-delay: -7s;
-}
-
-.workspace-float-card {
+.workspace-comet::after {
+  content: '';
   position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 42px;
-  min-width: 160px;
-  padding: 10px 12px;
-  border: 0.5px solid rgba(211, 209, 199, 0.86);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.62);
-  box-shadow: 0 18px 50px rgba(44, 44, 42, 0.08);
-  backdrop-filter: blur(14px);
-  animation: workspace-panel-float 9s ease-in-out infinite;
+  right: -3px;
+  top: 50%;
+  height: 8px;
+  width: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.98);
+  transform: translateY(-50%);
 }
 
-.workspace-float-card-one {
-  top: 11%;
-  right: 15%;
+.workspace-comet-one {
+  left: -22%;
+  top: 12%;
+  animation-delay: -1s;
 }
 
-.workspace-float-card-two {
-  left: 7%;
-  bottom: 19%;
-  animation-delay: -3s;
-}
-
-.workspace-float-card-three {
-  right: 8%;
-  bottom: 9%;
+.workspace-comet-two {
+  left: -18%;
+  top: 35%;
+  width: 138px;
   animation-delay: -6s;
+  animation-duration: 16s;
 }
 
-.workspace-card-dot {
-  height: 10px;
-  width: 10px;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  border: 0.5px solid rgba(44, 44, 42, 0.1);
+.workspace-comet-three {
+  left: -28%;
+  top: 62%;
+  width: 210px;
+  animation-delay: -10s;
+  animation-duration: 19s;
 }
 
-.workspace-card-line {
+.workspace-celestial-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform: translate3d(var(--orbit-x), var(--orbit-y), 0);
+}
+
+.workspace-sun,
+.workspace-moon {
+  position: absolute;
   display: block;
-  height: 8px;
   border-radius: 999px;
-  background: rgba(44, 44, 42, 0.14);
+  will-change: transform, opacity;
 }
 
-.workspace-card-meter {
-  display: block;
-  height: 8px;
-  width: 72px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(44, 44, 42, 0.1);
+.workspace-sun {
+  left: 6%;
+  top: 13%;
+  height: clamp(76px, 10vw, 138px);
+  width: clamp(76px, 10vw, 138px);
+  opacity: var(--sun-opacity);
+  background:
+    radial-gradient(circle at 35% 34%, #fff8d7 0 19%, #ffd875 42%, #e99b35 72%, #d66b26 100%);
+  box-shadow:
+    0 0 34px rgba(255, 217, 103, 0.72),
+    0 0 92px rgba(255, 182, 70, 0.42),
+    0 0 160px rgba(255, 222, 128, 0.22);
+  animation: workspace-sun-path 28s ease-in-out infinite alternate;
 }
 
-.workspace-card-meter span {
+.workspace-sun::before {
+  content: '';
+  position: absolute;
+  inset: -18px;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 224, 136, 0.38);
+  box-shadow: 0 0 42px rgba(255, 224, 136, 0.22) inset;
+  animation: workspace-sun-rays 7s linear infinite;
+}
+
+.workspace-moon {
+  right: 9%;
+  top: 15%;
+  height: clamp(64px, 8vw, 112px);
+  width: clamp(64px, 8vw, 112px);
+  opacity: var(--moon-opacity);
+  background:
+    radial-gradient(circle at 37% 32%, #ffffff 0 16%, #e9edf4 48%, #b8c5d6 100%);
+  box-shadow:
+    0 0 30px rgba(229, 237, 255, 0.74),
+    0 0 96px rgba(172, 194, 255, 0.36);
+  animation: workspace-moon-path 32s ease-in-out infinite alternate;
+}
+
+.workspace-moon::after {
+  content: '';
+  position: absolute;
+  inset: 8% 4% 8% 32%;
+  border-radius: inherit;
+  background: var(--moon-mask);
+  box-shadow: -14px 0 18px rgba(255, 255, 255, 0.16) inset;
+}
+
+.workspace-horizon {
+  position: absolute;
+  left: 50%;
+  bottom: -11%;
+  z-index: 1;
+  display: flex;
+  height: 34vh;
+  width: min(1120px, 92vw);
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2.5%;
+  opacity: var(--horizon-opacity);
+  transform: translateX(-50%);
+}
+
+.workspace-horizon span {
   display: block;
   height: 100%;
-  width: 54%;
-  border-radius: inherit;
-  background: #476a7e;
-  animation: workspace-meter 5s ease-in-out infinite alternate;
+  flex: 1;
+  border-radius: 999px 999px 0 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.04)),
+    rgba(255, 255, 255, 0.16);
+  filter: blur(0.2px);
+}
+
+.workspace-horizon span:nth-child(1) {
+  height: 52%;
+}
+
+.workspace-horizon span:nth-child(2) {
+  height: 82%;
+}
+
+.workspace-horizon span:nth-child(3) {
+  height: 62%;
 }
 
 .auth-preview-card,
@@ -230,50 +371,79 @@ body {
   background: #67866e;
 }
 
-@keyframes workspace-grid-drift {
+@keyframes workspace-aurora-drift {
   from {
-    transform: rotate(-8deg) translate3d(0, 0, 0);
+    filter: hue-rotate(0deg);
   }
   to {
-    transform: rotate(-8deg) translate3d(46px, 46px, 0);
+    filter: hue-rotate(12deg);
   }
 }
 
 @keyframes workspace-light-sweep {
   from {
-    transform: translateX(-18%);
-    opacity: 0.6;
+    opacity: 0.42;
+    transform: translate3d(calc(var(--sky-sweep-x) - 26px), var(--sky-sweep-y), 0) rotate(-2deg);
   }
   to {
-    transform: translateX(18%);
-    opacity: 0.95;
+    opacity: 0.88;
+    transform: translate3d(calc(var(--sky-sweep-x) + 34px), calc(var(--sky-sweep-y) + 14px), 0) rotate(3deg);
   }
 }
 
-@keyframes workspace-rail-slide {
-  0%, 100% {
-    transform: translateX(-28px);
-  }
-  50% {
-    transform: translateX(46px);
-  }
-}
-
-@keyframes workspace-panel-float {
-  0%, 100% {
-    transform: translate3d(0, 0, 0);
-  }
-  50% {
-    transform: translate3d(0, -14px, 0);
-  }
-}
-
-@keyframes workspace-meter {
+@keyframes workspace-star-twinkle {
   from {
-    width: 34%;
+    opacity: var(--star-opacity-low);
   }
   to {
-    width: 82%;
+    opacity: var(--star-opacity);
+  }
+}
+
+@keyframes workspace-comet-flight {
+  0% {
+    opacity: 0;
+    transform: translate3d(-12vw, -8vh, 0) rotate(-24deg);
+  }
+  8% {
+    opacity: var(--comet-opacity);
+  }
+  32% {
+    opacity: var(--comet-opacity);
+  }
+  52%, 100% {
+    opacity: 0;
+    transform: translate3d(132vw, 54vh, 0) rotate(-24deg);
+  }
+}
+
+@keyframes workspace-sun-path {
+  0% {
+    transform: translate3d(0, 42px, 0) rotate(0deg);
+  }
+  45% {
+    transform: translate3d(36vw, -24px, 0) rotate(7deg);
+  }
+  100% {
+    transform: translate3d(72vw, 54px, 0) rotate(-8deg);
+  }
+}
+
+@keyframes workspace-sun-rays {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes workspace-moon-path {
+  0% {
+    transform: translate3d(0, 18px, 0) rotate(-8deg);
+  }
+  48% {
+    transform: translate3d(-34vw, -32px, 0) rotate(9deg);
+  }
+  100% {
+    transform: translate3d(-70vw, 42px, 0) rotate(-12deg);
   }
 }
 
@@ -307,23 +477,28 @@ body {
 }
 
 @media (max-width: 900px) {
-  .workspace-float-card-two,
-  .workspace-float-card-three {
+  .workspace-comet-two,
+  .workspace-comet-three {
     display: none;
   }
 
-  .workspace-float-card-one {
-    right: -64px;
-    top: 10%;
+  .workspace-sun {
+    top: 9%;
+  }
+
+  .workspace-moon {
+    top: 11%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .workspace-backdrop::before,
   .workspace-backdrop::after,
-  .workspace-rail,
-  .workspace-float-card,
-  .workspace-card-meter span,
+  .workspace-star-field,
+  .workspace-comet,
+  .workspace-sun,
+  .workspace-sun::before,
+  .workspace-moon,
   .auth-preview-card::after,
   .workspace-animated-panel::after,
   .auth-ticket-card,
