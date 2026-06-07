@@ -3,6 +3,7 @@ import axios from '../config/axios'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../context/userContext'
 import { getErrorMessage } from '../utils/getErrorMessage'
+import WorkspaceBackdrop from '../components/WorkspaceBackdrop'
 
 const pendingTaskColumns = [
     { key: 'todo', label: 'To do' },
@@ -164,8 +165,9 @@ const Home = () => {
     }, [ loadProjects ])
 
     return (
-        <main className='min-h-screen bg-[#f0efe9] text-[#2c2c2a]'>
-            <header className='border-b-[0.5px] border-[#d3d1c7] bg-white px-4 sm:px-6'>
+        <main className='workspace-page min-h-screen text-[#2c2c2a]'>
+            <WorkspaceBackdrop />
+            <header className='relative z-10 border-b-[0.5px] border-[#d3d1c7] bg-white/95 px-4 backdrop-blur sm:px-6'>
                 <div className='mx-auto flex min-h-[52px] max-w-7xl flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between'>
                     <div>
                         <p className='text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Workspace</p>
@@ -189,20 +191,44 @@ const Home = () => {
                 </div>
             </header>
 
-            <section className='mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)]'>
+            <section className='relative z-10 mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)]'>
                 <div className='order-2 min-w-0 space-y-4'>
+                    <section className='workspace-animated-panel rounded-[18px] border-[0.5px] border-[#d3d1c7] bg-white/90 p-5 shadow-[0_18px_60px_rgba(44,44,42,0.09)] backdrop-blur'>
+                        <div className='relative z-10 grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-center'>
+                            <div>
+                                <p className='text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Today</p>
+                                <h2 className='font-display mt-1 text-3xl leading-tight text-[#2c2c2a]'>
+                                    {projects.length ? `${projects.length} active project${projects.length === 1 ? '' : 's'}` : 'Workspace ready'}
+                                </h2>
+                                <div className='mt-4 flex flex-wrap gap-2 text-[11px] font-semibold text-[#5f5e5a]'>
+                                    <span className='rounded-full bg-[#f8f8f5] px-3 py-1'>{pendingTaskCount} pending</span>
+                                    <span className='rounded-full bg-[#eaf3de] px-3 py-1 text-[#3b6d11]'>{dashboardSummary.adminProjectCount} admin</span>
+                                    <span className='rounded-full bg-[#faeeda] px-3 py-1 text-[#854f0b]'>{dashboardSummary.totalTicketCount} tickets</span>
+                                </div>
+                            </div>
+                            <div className='rounded-[14px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] p-4'>
+                                <div className='dashboard-signal flex h-16 items-end justify-center gap-3'>
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
                     <div className='grid gap-3 sm:grid-cols-3'>
                         {statCards.map(card => (
                             <article
                                 key={card.label}
-                                className={`rounded-xl border-[0.5px] p-[14px_16px] ${card.highlighted ? 'border-[#2c2c2a] bg-[#2c2c2a]' : 'border-[#d3d1c7] bg-white'}`}>
+                                className={`rounded-xl border-[0.5px] p-[18px_18px] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.highlighted ? 'border-[#2c2c2a] bg-[#2c2c2a]' : 'border-[#d3d1c7] bg-white/95 backdrop-blur'}`}>
                                 <div className={`font-display text-[28px] leading-none ${card.highlighted ? 'text-[#f0efe9]' : 'text-[#2c2c2a]'}`}>{card.value}</div>
                                 <div className={`mt-2 text-[11px] font-medium ${card.highlighted ? 'text-[#f0efe9]/80' : 'text-[#888780]'}`}>{card.label}</div>
                             </article>
                         ))}
                     </div>
 
-                    <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
+                    <section className='rounded-[18px] border-[0.5px] border-[#d3d1c7] bg-white/95 p-5 shadow-sm backdrop-blur'>
                         <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
                             <h2 className='text-[13px] font-medium text-[#2c2c2a]'>My pending tasks</h2>
                             <span className='text-[11px] font-medium text-[#888780]'>{pendingTaskCount} assigned across projects</span>
@@ -211,7 +237,7 @@ const Home = () => {
                         <div className='overflow-x-auto'>
                             <div className='grid min-w-[780px] grid-cols-3 gap-3'>
                                 {pendingTaskColumns.map(column => (
-                                    <div key={column.key} className='min-h-48 rounded-[10px] bg-[#f8f8f5] p-2.5'>
+                                    <div key={column.key} className='min-h-[360px] rounded-[12px] bg-[#f8f8f5] p-3'>
                                         <div className='mb-3 flex items-center justify-between'>
                                             <h3 className='text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5f5e5a]'>{column.label}</h3>
                                             <span className='rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-[#888780]'>{pendingTasksByStatus[ column.key ].length}</span>
@@ -221,7 +247,7 @@ const Home = () => {
                                                 <button
                                                     key={`${task.projectId}-${task._id}`}
                                                     onClick={() => navigate(`/project/${task.projectId}`)}
-                                                    className='block w-full rounded-lg border-[0.5px] border-[#e8e7e0] bg-white px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-sm'>
+                                                    className='block w-full rounded-[12px] border-[0.5px] border-[#e8e7e0] bg-white px-3 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm'>
                                                     <h4 className='text-[13px] font-medium leading-5 text-[#2c2c2a]'>{task.title}</h4>
                                                     <div className='mt-1 text-[11px] font-medium text-[#888780]'>{task.projectName}</div>
                                                     <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityClasses[ task.priority ] || priorityClasses.medium}`}>
@@ -229,7 +255,7 @@ const Home = () => {
                                                     </span>
                                                 </button>
                                             )) : (
-                                                <div className='flex min-h-28 items-center justify-center text-[12px] font-medium text-[#b4b2a9]'>No tasks</div>
+                                                <div className='flex min-h-52 items-center justify-center rounded-[10px] border-[0.5px] border-dashed border-[#e8e7e0] bg-white/60 text-[12px] font-medium text-[#b4b2a9]'>No tasks</div>
                                             )}
                                         </div>
                                     </div>

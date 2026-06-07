@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from '../config/axios'
+import WorkspaceBackdrop from '../components/WorkspaceBackdrop'
 
 const JoinProject = () => {
     const { inviteCode } = useParams()
@@ -21,8 +22,9 @@ const JoinProject = () => {
     }, [ inviteCode, navigate ])
 
     return (
-        <main className='flex min-h-screen items-center justify-center bg-[#f0efe9] p-4 text-[#2c2c2a]'>
-            <section className='w-full max-w-md rounded-[20px] border-[0.5px] border-[#d3d1c7] bg-white p-8 text-center shadow-sm'>
+        <main className='workspace-page flex min-h-screen items-center justify-center p-4 text-[#2c2c2a]'>
+            <WorkspaceBackdrop />
+            <section className='relative z-10 w-full max-w-xl rounded-[24px] border-[0.5px] border-[#d3d1c7] bg-white/90 p-10 text-center shadow-[0_24px_80px_rgba(44,44,42,0.12)] backdrop-blur'>
                 <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#2c2c2a] text-[#f0efe9]'>
                     <i className="ri-link"></i>
                 </div>

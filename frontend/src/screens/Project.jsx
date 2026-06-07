@@ -6,6 +6,7 @@ import { disconnectSocket, initializeSocket, receiveMessage, sendMessage } from 
 import Markdown from 'markdown-to-jsx'
 import hljs from 'highlight.js'
 import { getErrorMessage } from '../utils/getErrorMessage'
+import WorkspaceBackdrop from '../components/WorkspaceBackdrop'
 
 const ticketColumns = [
     { key: 'todo', label: 'To do' },
@@ -164,6 +165,12 @@ const Project = () => {
             return assigneeId && assigneeId === currentUserId
         }) || []
     }, [ currentUserId, project?.tickets ])
+
+    const projectPulse = useMemo(() => ({
+        members: project?.users?.length || 0,
+        messages: messages.length,
+        tickets: project?.tickets?.length || 0,
+    }), [ messages.length, project?.tickets?.length, project?.users?.length ])
 
     const reloadProject = useCallback(async () => {
         if (!projectId) {
@@ -406,15 +413,17 @@ const Project = () => {
 
     if (!project) {
         return (
-            <main className='flex min-h-screen items-center justify-center bg-[#f0efe9] text-sm font-medium text-[#888780]'>
-                Loading project...
+            <main className='workspace-page flex min-h-screen items-center justify-center text-sm font-medium text-[#888780]'>
+                <WorkspaceBackdrop />
+                <span className='relative z-10 rounded-full border-[0.5px] border-[#d3d1c7] bg-white/80 px-4 py-2 shadow-sm backdrop-blur'>Loading project...</span>
             </main>
         )
     }
 
     return (
-        <main className='min-h-screen bg-[#f0efe9] text-[#2c2c2a]'>
-            <header className='border-b-[0.5px] border-[#d3d1c7] bg-white px-4 sm:px-6'>
+        <main className='workspace-page min-h-screen text-[#2c2c2a]'>
+            <WorkspaceBackdrop />
+            <header className='relative z-10 border-b-[0.5px] border-[#d3d1c7] bg-white/95 px-4 backdrop-blur sm:px-6'>
                 <div className='mx-auto flex min-h-[52px] max-w-[1440px] flex-col gap-3 py-2 lg:flex-row lg:items-center lg:justify-between'>
                     <div className='flex min-w-0 items-center gap-3'>
                         <button
@@ -467,8 +476,8 @@ const Project = () => {
                 </div>
             </header>
 
-            <section className='mx-auto grid max-w-[1440px] gap-4 px-4 py-5 sm:px-6 xl:grid-cols-[minmax(0,1fr)_280px]'>
-                <div className='min-w-0 overflow-hidden rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white'>
+            <section className='relative z-10 mx-auto grid max-w-[1500px] gap-4 px-4 py-5 sm:px-6 xl:grid-cols-[minmax(0,1fr)_300px]'>
+                <div className='min-w-0 overflow-hidden rounded-[18px] border-[0.5px] border-[#d3d1c7] bg-white/95 shadow-[0_18px_60px_rgba(44,44,42,0.08)] backdrop-blur'>
                     {actionError && (
                         <div className='m-4 rounded-[10px] bg-[#fcebeb] px-3 py-2 text-sm text-[#a32d2d]'>{actionError}</div>
                     )}
@@ -489,8 +498,27 @@ const Project = () => {
                         ))}
                     </div>
 
+                    <section className='workspace-animated-panel m-4 rounded-[16px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] p-4'>
+                        <div className='relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+                            <div>
+                                <p className='text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Project pulse</p>
+                                <div className='mt-2 flex flex-wrap gap-2 text-[11px] font-semibold'>
+                                    <span className='rounded-full bg-white px-3 py-1 text-[#5f5e5a]'>{projectPulse.members} members</span>
+                                    <span className='rounded-full bg-[#eaf3de] px-3 py-1 text-[#3b6d11]'>{projectPulse.messages} messages</span>
+                                    <span className='rounded-full bg-[#faeeda] px-3 py-1 text-[#854f0b]'>{projectPulse.tickets} tickets</span>
+                                </div>
+                            </div>
+                            <div className='dashboard-signal flex h-12 items-end gap-2'>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </section>
+
                     {activeTab === 'chat' && (
-                        <section className='flex h-[calc(100vh-158px)] min-h-[560px] flex-col'>
+                        <section className='flex h-[calc(100vh-246px)] min-h-[520px] flex-col'>
                             <div ref={messageBox} className='message-box flex flex-1 flex-col overflow-auto bg-[#f8f8f5] p-4 sm:p-5'>
                                 {messages.length === 0 && (
                                     <div className='rounded-[10px] border-[0.5px] border-dashed border-[#d3d1c7] bg-white p-6 text-center text-sm font-medium text-[#888780]'>
@@ -636,7 +664,7 @@ const Project = () => {
                                 <div className='min-w-0 overflow-x-auto rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] p-3 sm:p-4'>
                                     <div className='grid min-w-[1120px] grid-cols-4 gap-4'>
                                         {ticketColumns.map(column => (
-                                            <div key={column.key} className='min-h-[620px] rounded-[10px] bg-white p-4'>
+                                            <div key={column.key} className='min-h-[680px] rounded-[12px] bg-white p-4'>
                                                 <div className='mb-4 flex items-center justify-between'>
                                                     <h3 className='text-[13px] font-semibold uppercase tracking-[0.08em] text-[#5f5e5a]'>{column.label}</h3>
                                                     <span className='rounded-full bg-[#f8f8f5] px-2.5 py-1 text-xs font-semibold text-[#888780]'>{ticketsByStatus[ column.key ]?.length || 0}</span>
