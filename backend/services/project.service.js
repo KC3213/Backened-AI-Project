@@ -439,6 +439,24 @@ const normalizeAssistantSummary = (content, fallbackSummary) => {
     }
 }
 
+const getAssistantProxyHost = () => {
+    const proxy = process.env.GROQ_PROXY_URL
+        || process.env.HTTPS_PROXY
+        || process.env.HTTP_PROXY
+        || process.env.https_proxy
+        || process.env.http_proxy
+
+    if (!proxy) {
+        return ''
+    }
+
+    try {
+        return new URL(proxy).host
+    } catch {
+        return 'invalid-proxy-url'
+    }
+}
+
 const serializeProjectForUser = (project, userId) => {
     const serializedProject = typeof project.toObject === 'function'
         ? project.toObject()
@@ -787,7 +805,15 @@ export const getProjectAssistantSummary = async ({ projectId, userId }) => {
         const result = await generateProjectAssistantResult(buildAssistantPrompt(project, fallbackSummary))
         return normalizeAssistantSummary(result, fallbackSummary)
     } catch (error) {
-        console.warn(`Project assistant fell back to local analysis: ${error.message}`)
+        console.warn(JSON.stringify({
+            event: 'project_assistant_fallback',
+            provider: 'groq',
+            model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+            hasGroqKey: Boolean(process.env.GROQ_API_KEY),
+            proxyHost: getAssistantProxyHost(),
+            errorName: error.name,
+            errorMessage: error.message,
+        }))
 
         return {
             ...fallbackSummary,

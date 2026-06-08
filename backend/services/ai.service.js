@@ -107,10 +107,21 @@ const groqChatCompletionsUrl = process.env.GROQ_API_URL || 'https://api.groq.com
 const groqProjectAssistantModel = process.env.GROQ_MODEL || 'llama-3.1-8b-instant'
 const projectAssistantSystemInstruction = `You are a concise project management assistant for a Jira-style team workspace. Summarize project conversation, identify the most important tickets, and suggest practical next steps. Return only valid JSON that matches the requested shape.`
 
-const getProxyUrl = () => process.env.HTTPS_PROXY
+const getProxyUrl = () => process.env.GROQ_PROXY_URL
+    || process.env.HTTPS_PROXY
     || process.env.HTTP_PROXY
     || process.env.https_proxy
     || process.env.http_proxy
+
+const getErrorMessage = (error) => {
+    const cause = error.cause?.message || error.cause?.code
+
+    if (cause) {
+        return `${error.message}: ${cause}`
+    }
+
+    return error.message || 'Unknown error'
+}
 
 const createProxyAuthHeader = (proxyUrl) => {
     if (!proxyUrl.username) {
@@ -181,12 +192,17 @@ const postJsonThroughHttpProxy = ({ targetUrl, proxyUrl, headers, body }) => {
                     })
                 })
 
+                request.on('timeout', () => {
+                    request.destroy(new Error('Groq request timed out after proxy CONNECT'))
+                })
                 request.on('error', reject)
+                request.setTimeout(30000)
                 request.write(body)
                 request.end()
             })
 
             secureSocket.on('error', reject)
+            proxySocket.on('error', reject)
         })
 
         connectRequest.on('timeout', () => {
@@ -233,27 +249,33 @@ export const generateProjectAssistantResult = async (prompt) => {
         throw new Error('GROQ_API_KEY is not configured')
     }
 
-    const response = await postJson(groqChatCompletionsUrl, {
-        model: groqProjectAssistantModel,
-        messages: [
-            {
-                role: 'system',
-                content: projectAssistantSystemInstruction,
+    let response
+
+    try {
+        response = await postJson(groqChatCompletionsUrl, {
+            model: groqProjectAssistantModel,
+            messages: [
+                {
+                    role: 'system',
+                    content: projectAssistantSystemInstruction,
+                },
+                {
+                    role: 'user',
+                    content: prompt,
+                },
+            ],
+            temperature: 0.2,
+            max_tokens: 450,
+            response_format: {
+                type: 'json_object',
             },
-            {
-                role: 'user',
-                content: prompt,
-            },
-        ],
-        temperature: 0.2,
-        max_tokens: 450,
-        response_format: {
-            type: 'json_object',
-        },
-    }, {
+        }, {
             Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
             'Content-Type': 'application/json',
-    })
+        })
+    } catch (error) {
+        throw new Error(`Groq request failed before response: ${getErrorMessage(error)}`)
+    }
 
     if (!response.ok) {
         const errorBody = await response.text()
