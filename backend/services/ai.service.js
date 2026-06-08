@@ -1,4 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
+import http from 'node:http'
+import https from 'node:https'
+import tls from 'node:tls'
 
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY);
@@ -105,6 +108,116 @@ const groqChatCompletionsUrl = process.env.GROQ_API_URL || 'https://api.groq.com
 const groqProjectAssistantModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const projectAssistantSystemInstruction = `You are a concise project management assistant for a Jira-style team workspace. Summarize project conversation, identify the most important tickets, and suggest practical next steps. Return only valid JSON that matches the requested shape.`
 
+const getProxyUrl = () => process.env.HTTPS_PROXY
+    || process.env.HTTP_PROXY
+    || process.env.https_proxy
+    || process.env.http_proxy
+
+const createProxyAuthHeader = (proxyUrl) => {
+    if (!proxyUrl.username) {
+        return {}
+    }
+
+    const credentials = `${decodeURIComponent(proxyUrl.username)}:${decodeURIComponent(proxyUrl.password)}`
+
+    return {
+        'Proxy-Authorization': `Basic ${Buffer.from(credentials).toString('base64')}`,
+    }
+}
+
+const createResponseLike = ({ statusCode, statusMessage, body }) => ({
+    ok: statusCode >= 200 && statusCode < 300,
+    status: statusCode,
+    statusText: statusMessage,
+    text: async () => body,
+    json: async () => JSON.parse(body),
+})
+
+const postJsonThroughHttpProxy = ({ targetUrl, proxyUrl, headers, body }) => {
+    return new Promise((resolve, reject) => {
+        const connectRequest = http.request({
+            host: proxyUrl.hostname,
+            port: proxyUrl.port || 80,
+            method: 'CONNECT',
+            path: `${targetUrl.hostname}:${targetUrl.port || 443}`,
+            headers: createProxyAuthHeader(proxyUrl),
+            timeout: 15000,
+        })
+
+        connectRequest.on('connect', (connectResponse, proxySocket) => {
+            if (connectResponse.statusCode !== 200) {
+                proxySocket.destroy()
+                reject(new Error(`Proxy CONNECT failed with status ${connectResponse.statusCode}`))
+                return
+            }
+
+            const secureSocket = tls.connect({
+                socket: proxySocket,
+                servername: targetUrl.hostname,
+            }, () => {
+                const request = https.request({
+                    host: targetUrl.hostname,
+                    path: `${targetUrl.pathname}${targetUrl.search}`,
+                    method: 'POST',
+                    headers,
+                    agent: false,
+                    createConnection: () => secureSocket,
+                }, (response) => {
+                    let responseBody = ''
+
+                    response.setEncoding('utf8')
+                    response.on('data', chunk => {
+                        responseBody += chunk
+                    })
+                    response.on('end', () => {
+                        resolve(createResponseLike({
+                            statusCode: response.statusCode,
+                            statusMessage: response.statusMessage,
+                            body: responseBody,
+                        }))
+                    })
+                })
+
+                request.on('error', reject)
+                request.write(body)
+                request.end()
+            })
+
+            secureSocket.on('error', reject)
+        })
+
+        connectRequest.on('timeout', () => {
+            connectRequest.destroy(new Error('Proxy CONNECT timed out'))
+        })
+        connectRequest.on('error', reject)
+        connectRequest.end()
+    })
+}
+
+const postJson = async (url, payload, headers) => {
+    const body = JSON.stringify(payload)
+    const requestHeaders = {
+        ...headers,
+        'Content-Length': Buffer.byteLength(body),
+    }
+    const proxy = getProxyUrl()
+
+    if (proxy) {
+        return postJsonThroughHttpProxy({
+            targetUrl: new URL(url),
+            proxyUrl: new URL(proxy),
+            headers: requestHeaders,
+            body,
+        })
+    }
+
+    return fetch(url, {
+        method: 'POST',
+        headers: requestHeaders,
+        body,
+    })
+}
+
 export const generateResult = async (prompt) => {
 
     const result = await model.generateContent(prompt);
@@ -117,29 +230,25 @@ export const generateProjectAssistantResult = async (prompt) => {
         throw new Error('GROQ_API_KEY is not configured')
     }
 
-    const response = await fetch(groqChatCompletionsUrl, {
-        method: 'POST',
-        headers: {
+    const response = await postJson(groqChatCompletionsUrl, {
+        model: groqProjectAssistantModel,
+        messages: [
+            {
+                role: 'system',
+                content: projectAssistantSystemInstruction,
+            },
+            {
+                role: 'user',
+                content: prompt,
+            },
+        ],
+        temperature: 0.2,
+        response_format: {
+            type: 'json_object',
+        },
+    }, {
             Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
             'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: groqProjectAssistantModel,
-            messages: [
-                {
-                    role: 'system',
-                    content: projectAssistantSystemInstruction,
-                },
-                {
-                    role: 'user',
-                    content: prompt,
-                },
-            ],
-            temperature: 0.2,
-            response_format: {
-                type: 'json_object',
-            },
-        }),
     })
 
     if (!response.ok) {
