@@ -123,6 +123,6 @@ See [docs/AI_ASSISTANT_BOT.md](docs/AI_ASSISTANT_BOT.md) for the project assista
 
 - If protected routes return `Unauthorized User`, confirm the frontend has a token in local storage and `VITE_API_URL` points to the backend.
 - If project routes hang or fail after login, confirm Redis and MongoDB are running and match `backend/.env`.
-- If the Assistant tab shows `Local fallback: fetch failed` while `GROQ_API_KEY` is set, confirm the backend process can reach Groq. Behind a corporate proxy, start the backend with `HTTP_PROXY` and `HTTPS_PROXY`; the Groq helper reads those environment variables on Node 20.
+- If the Assistant tab shows `Local fallback: fetch failed` while `GROQ_API_KEY` is set, confirm the backend process can reach Groq. Behind a corporate proxy, start the backend with `HTTP_PROXY` and `HTTPS_PROXY`; the Groq helper reads those environment variables on Node 20. For faster summaries, set `GROQ_MODEL=llama-3.1-8b-instant`.
 - If your own saved chat messages look like another user's messages after refresh, confirm `/users/me` returns a user object with `_id`.
 - If npm install fails with certificate or proxy errors, fix the local npm/proxy configuration first; the app dependencies are managed through the committed lockfiles.

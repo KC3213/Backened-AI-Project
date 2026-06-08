@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import http from 'node:http'
-import https from 'node:https'
 import tls from 'node:tls'
 
 
@@ -105,7 +104,7 @@ const model = genAI.getGenerativeModel({
 });
 
 const groqChatCompletionsUrl = process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions'
-const groqProjectAssistantModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
+const groqProjectAssistantModel = process.env.GROQ_MODEL || 'llama-3.1-8b-instant'
 const projectAssistantSystemInstruction = `You are a concise project management assistant for a Jira-style team workspace. Summarize project conversation, identify the most important tickets, and suggest practical next steps. Return only valid JSON that matches the requested shape.`
 
 const getProxyUrl = () => process.env.HTTPS_PROXY
@@ -155,11 +154,15 @@ const postJsonThroughHttpProxy = ({ targetUrl, proxyUrl, headers, body }) => {
                 socket: proxySocket,
                 servername: targetUrl.hostname,
             }, () => {
-                const request = https.request({
+                const request = http.request({
                     host: targetUrl.hostname,
+                    port: targetUrl.port || 443,
                     path: `${targetUrl.pathname}${targetUrl.search}`,
                     method: 'POST',
-                    headers,
+                    headers: {
+                        Host: targetUrl.host,
+                        ...headers,
+                    },
                     agent: false,
                     createConnection: () => secureSocket,
                 }, (response) => {
@@ -243,6 +246,7 @@ export const generateProjectAssistantResult = async (prompt) => {
             },
         ],
         temperature: 0.2,
+        max_tokens: 450,
         response_format: {
             type: 'json_object',
         },

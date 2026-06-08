@@ -787,6 +787,8 @@ export const getProjectAssistantSummary = async ({ projectId, userId }) => {
         const result = await generateProjectAssistantResult(buildAssistantPrompt(project, fallbackSummary))
         return normalizeAssistantSummary(result, fallbackSummary)
     } catch (error) {
+        console.warn(`Project assistant fell back to local analysis: ${error.message}`)
+
         return {
             ...fallbackSummary,
             aiStatus: error.message,
