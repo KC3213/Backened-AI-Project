@@ -1,5 +1,6 @@
 import projectModel from '../models/project.model.js';
 import mongoose from 'mongoose';
+import { generateProjectAssistantResult } from './ai.service.js';
 
 const userSelectFields = 'name email avatar'
 const allowedSubmissionMimeTypes = new Set([
@@ -144,6 +145,278 @@ const validateSubmissionFile = (file = {}) => {
         fileType: file.type || extension,
         fileSize: file.size,
         fileData: file.dataUrl,
+    }
+}
+
+const truncateText = (value = '', maxLength = 320) => {
+    const text = value?.toString?.().trim() || ''
+
+    if (text.length <= maxLength) {
+        return text
+    }
+
+    return `${text.slice(0, maxLength - 3)}...`
+}
+
+const getEntityId = (entity) => {
+    if (!entity) {
+        return ''
+    }
+
+    if (typeof entity === 'object' && entity._id) {
+        return entity._id.toString()
+    }
+
+    return entity.toString()
+}
+
+const getPersonLabel = (person, fallback = 'Unassigned') => {
+    if (!person) {
+        return fallback
+    }
+
+    if (typeof person !== 'object') {
+        return person.toString()
+    }
+
+    return person.name || person.email || fallback
+}
+
+const priorityWeight = {
+    urgent: 4,
+    high: 3,
+    medium: 2,
+    low: 1,
+}
+
+const statusWeight = {
+    review: 4,
+    'in-progress': 3,
+    todo: 2,
+    done: 0,
+}
+
+const getTicketImportanceScore = (ticket) => {
+    const submissionScore = Math.min(ticket.submissions?.length || 0, 3)
+    const unassignedScore = ticket.assignee ? 0 : 1
+
+    return (priorityWeight[ ticket.priority ] || 0) * 10
+        + (statusWeight[ ticket.status ] || 0) * 5
+        + submissionScore
+        + unassignedScore
+}
+
+const getTicketImportanceReason = (ticket) => {
+    const reasons = []
+
+    if ([ 'urgent', 'high' ].includes(ticket.priority)) {
+        reasons.push(`${ticket.priority} priority`)
+    }
+
+    if (ticket.status === 'review') {
+        reasons.push('waiting for review')
+    } else if (ticket.status === 'in-progress') {
+        reasons.push('currently in progress')
+    } else if (ticket.status === 'todo') {
+        reasons.push('not started yet')
+    }
+
+    if (!ticket.assignee) {
+        reasons.push('needs an assignee')
+    }
+
+    if (ticket.submissions?.length) {
+        reasons.push(`${ticket.submissions.length} submission${ticket.submissions.length === 1 ? '' : 's'} attached`)
+    }
+
+    return reasons.join(', ') || 'open project work'
+}
+
+const getAssistantTicketShape = (ticket) => ({
+    ticketId: getEntityId(ticket),
+    title: ticket.title,
+    priority: ticket.priority || 'medium',
+    status: ticket.status || 'todo',
+    assignee: getPersonLabel(ticket.assignee),
+    reason: getTicketImportanceReason(ticket),
+})
+
+const buildConversationSummary = (messages) => {
+    if (!messages.length) {
+        return 'No project conversation has been recorded yet.'
+    }
+
+    const senderCounts = messages.reduce((counts, message) => {
+        const sender = getPersonLabel(message.sender, 'Unknown')
+        counts.set(sender, (counts.get(sender) || 0) + 1)
+        return counts
+    }, new Map())
+    const activeSenders = Array.from(senderCounts.entries())
+        .sort((first, second) => second[ 1 ] - first[ 1 ])
+        .slice(0, 3)
+        .map(([ sender, count ]) => `${sender} (${count})`)
+        .join(', ')
+    const latestNotes = messages
+        .slice(-3)
+        .map(message => `${getPersonLabel(message.sender, 'Unknown')}: ${truncateText(message.message, 110)}`)
+        .join(' | ')
+
+    return `Recent conversation has ${messages.length} message${messages.length === 1 ? '' : 's'}. Active voices: ${activeSenders}. Latest notes: ${latestNotes}`
+}
+
+const buildRecommendedNextSteps = ({ messages, tickets, importantTickets }) => {
+    const openTickets = tickets.filter(ticket => ticket.status !== 'done')
+    const reviewTickets = tickets.filter(ticket => ticket.status === 'review')
+    const urgentTickets = tickets.filter(ticket => ticket.priority === 'urgent' && ticket.status !== 'done')
+    const unassignedTickets = openTickets.filter(ticket => !ticket.assignee)
+    const steps = []
+
+    if (reviewTickets.length) {
+        steps.push(`Review ${reviewTickets.length} ticket${reviewTickets.length === 1 ? '' : 's'} that already have submitted work.`)
+    }
+
+    if (urgentTickets.length) {
+        steps.push(`Prioritize ${urgentTickets.length} urgent open ticket${urgentTickets.length === 1 ? '' : 's'} before lower-priority work.`)
+    }
+
+    if (unassignedTickets.length) {
+        steps.push(`Assign owners for ${unassignedTickets.length} open ticket${unassignedTickets.length === 1 ? '' : 's'} without an assignee.`)
+    }
+
+    if (importantTickets[ 0 ]) {
+        steps.push(`Start with "${importantTickets[ 0 ].title}" because it has the strongest priority signal.`)
+    }
+
+    if (!tickets.length) {
+        steps.push('Create tickets for the next concrete project tasks.')
+    }
+
+    if (!messages.length) {
+        steps.push('Use the project chat to record decisions before sprint planning.')
+    }
+
+    if (!steps.length) {
+        steps.push('Keep completed work closed and plan the next sprint items.')
+    }
+
+    return steps.slice(0, 4)
+}
+
+const buildFallbackAssistantSummary = (project) => {
+    const messages = project.messages?.slice(-40) || []
+    const tickets = project.tickets || []
+    const importantTickets = tickets
+        .filter(ticket => ticket.status !== 'done')
+        .sort((first, second) => getTicketImportanceScore(second) - getTicketImportanceScore(first))
+        .slice(0, 5)
+        .map(getAssistantTicketShape)
+
+    return {
+        generatedAt: new Date().toISOString(),
+        source: 'local',
+        conversationSummary: buildConversationSummary(messages),
+        importantTickets,
+        recommendedNextSteps: buildRecommendedNextSteps({ messages, tickets, importantTickets }),
+        stats: {
+            messages: project.messages?.length || 0,
+            tickets: tickets.length,
+            openTickets: tickets.filter(ticket => ticket.status !== 'done').length,
+        },
+    }
+}
+
+const getAssistantProjectPayload = (project, fallbackSummary) => ({
+    projectName: project.name,
+    stats: fallbackSummary.stats,
+    recentMessages: (project.messages || []).slice(-40).map(message => ({
+        sender: getPersonLabel(message.sender, 'Unknown'),
+        message: truncateText(message.message, 300),
+        createdAt: message.createdAt,
+    })),
+    tickets: (project.tickets || []).map(ticket => ({
+        ticketId: getEntityId(ticket),
+        title: ticket.title,
+        description: truncateText(ticket.description, 240),
+        status: ticket.status,
+        priority: ticket.priority,
+        assignee: getPersonLabel(ticket.assignee),
+        submissions: ticket.submissions?.length || 0,
+        createdAt: ticket.createdAt,
+        updatedAt: ticket.updatedAt,
+    })),
+})
+
+const buildAssistantPrompt = (project, fallbackSummary) => {
+    return `Analyze this project workspace and return JSON with this shape:
+{
+  "conversationSummary": "2-4 sentence useful project conversation summary",
+  "importantTickets": [
+    {
+      "ticketId": "ticket id",
+      "title": "ticket title",
+      "priority": "low|medium|high|urgent",
+      "status": "todo|in-progress|review|done",
+      "assignee": "assignee name or Unassigned",
+      "reason": "why this ticket needs attention"
+    }
+  ],
+  "recommendedNextSteps": ["short practical next step"]
+}
+
+Rules:
+- Focus on project decisions, blockers, unresolved questions, and urgent/high priority work.
+- Keep importantTickets to at most 5 items.
+- Do not invent tickets or people that are not present in the payload.
+- Return only valid JSON.
+
+Project payload:
+${JSON.stringify(getAssistantProjectPayload(project, fallbackSummary))}`
+}
+
+const parseAssistantJson = (content) => {
+    const text = content?.toString?.().trim() || ''
+    const fencedJson = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+    const jsonText = fencedJson ? fencedJson[ 1 ] : text
+    const firstBrace = jsonText.indexOf('{')
+    const lastBrace = jsonText.lastIndexOf('}')
+
+    if (firstBrace === -1 || lastBrace === -1) {
+        throw new Error('Assistant response was not JSON')
+    }
+
+    return JSON.parse(jsonText.slice(firstBrace, lastBrace + 1))
+}
+
+const normalizeAssistantTickets = (tickets, fallbackTickets) => {
+    if (!Array.isArray(tickets)) {
+        return fallbackTickets
+    }
+
+    return tickets
+        .slice(0, 5)
+        .map((ticket, index) => ({
+            ticketId: ticket.ticketId?.toString?.() || fallbackTickets[ index ]?.ticketId || '',
+            title: ticket.title?.toString?.() || fallbackTickets[ index ]?.title || '',
+            priority: ticket.priority?.toString?.() || fallbackTickets[ index ]?.priority || 'medium',
+            status: ticket.status?.toString?.() || fallbackTickets[ index ]?.status || 'todo',
+            assignee: ticket.assignee?.toString?.() || fallbackTickets[ index ]?.assignee || 'Unassigned',
+            reason: ticket.reason?.toString?.() || fallbackTickets[ index ]?.reason || 'Important open project work',
+        }))
+        .filter(ticket => ticket.title)
+}
+
+const normalizeAssistantSummary = (content, fallbackSummary) => {
+    const parsed = parseAssistantJson(content)
+    const recommendedNextSteps = Array.isArray(parsed.recommendedNextSteps)
+        ? parsed.recommendedNextSteps.slice(0, 4).map(step => step?.toString?.()).filter(Boolean)
+        : fallbackSummary.recommendedNextSteps
+
+    return {
+        ...fallbackSummary,
+        source: 'ai',
+        conversationSummary: parsed.conversationSummary?.toString?.() || fallbackSummary.conversationSummary,
+        importantTickets: normalizeAssistantTickets(parsed.importantTickets, fallbackSummary.importantTickets),
+        recommendedNextSteps: recommendedNextSteps.length ? recommendedNextSteps : fallbackSummary.recommendedNextSteps,
     }
 }
 
@@ -485,4 +758,19 @@ export const createTicketSubmission = async ({ projectId, userId, ticketId, type
     await project.populate('tickets.submissions.submittedBy', userSelectFields)
 
     return ticket.submissions[ ticket.submissions.length - 1 ]
+}
+
+export const getProjectAssistantSummary = async ({ projectId, userId }) => {
+    const project = await getProjectById({ projectId, userId })
+    const fallbackSummary = buildFallbackAssistantSummary(project)
+
+    try {
+        const result = await generateProjectAssistantResult(buildAssistantPrompt(project, fallbackSummary))
+        return normalizeAssistantSummary(result, fallbackSummary)
+    } catch (error) {
+        return {
+            ...fallbackSummary,
+            aiStatus: error.message,
+        }
+    }
 }

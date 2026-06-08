@@ -29,6 +29,12 @@ const statusLabels = ticketColumns.reduce((acc, column) => {
     return acc
 }, {})
 
+const workspaceTabs = [
+    { key: 'chat', label: 'Chat', icon: 'ri-chat-3-line' },
+    { key: 'work', label: 'Work', icon: 'ri-kanban-view-2' },
+    { key: 'assist', label: 'Assistant', icon: 'ri-robot-2-line' },
+]
+
 const allowedSubmissionMimeTypes = [
     'application/pdf',
     'application/msword',
@@ -187,6 +193,9 @@ const Project = () => {
     })
     const [ submissionForms, setSubmissionForms ] = useState({})
     const [ submittingTicketId, setSubmittingTicketId ] = useState('')
+    const [ assistantSummary, setAssistantSummary ] = useState(null)
+    const [ isAssistantLoading, setIsAssistantLoading ] = useState(false)
+    const [ assistantError, setAssistantError ] = useState('')
 
     const projectId = project?._id || initialProjectId
     const inviteLink = project?.inviteCode ? `${window.location.origin}/join/${project.inviteCode}` : ''
@@ -229,6 +238,23 @@ const Project = () => {
         const res = await axios.get(`/projects/get-project/${projectId}`)
         setProject(res.data.project)
         setMessages(res.data.project.messages || [])
+    }, [ projectId ])
+
+    const loadAssistantSummary = useCallback(async () => {
+        if (!projectId) {
+            return
+        }
+
+        try {
+            setIsAssistantLoading(true)
+            setAssistantError('')
+            const res = await axios.post(`/projects/${projectId}/assistant/summary`)
+            setAssistantSummary(res.data.assistantSummary)
+        } catch (err) {
+            setAssistantError(getErrorMessage(err, 'Could not load assistant summary'))
+        } finally {
+            setIsAssistantLoading(false)
+        }
     }, [ projectId ])
 
     const handleUserClick = (id) => {
@@ -274,6 +300,7 @@ const Project = () => {
                 message: trimmedMessage,
             })
             setMessage("")
+            setAssistantSummary(null)
         } catch (error) {
             setSocketError(error.message)
         }
@@ -332,6 +359,7 @@ const Project = () => {
                 name: '',
                 goal: '',
             })
+            setAssistantSummary(null)
             await reloadProject()
         } catch (err) {
             setActionError(getErrorMessage(err, 'Could not create sprint'))
@@ -359,6 +387,7 @@ const Project = () => {
                 priority: 'medium',
                 sprintId: '',
             })
+            setAssistantSummary(null)
             await reloadProject()
         } catch (err) {
             setActionError(getErrorMessage(err, 'Could not create ticket'))
@@ -371,6 +400,7 @@ const Project = () => {
             await axios.put(`/projects/${projectId}/tickets/${ticket._id}`, {
                 status
             })
+            setAssistantSummary(null)
             await reloadProject()
         } catch (err) {
             setActionError(getErrorMessage(err, 'Could not update ticket'))
@@ -452,6 +482,7 @@ const Project = () => {
                 ...prevForms,
                 [ ticket._id ]: getSubmissionFormDefaults(),
             }))
+            setAssistantSummary(null)
             await reloadProject()
         } catch (err) {
             setActionError(getErrorMessage(err, 'Could not submit ticket work'))
@@ -482,6 +513,17 @@ const Project = () => {
         })
 
     }, [ navigate, projectId, reloadProject ])
+
+    useEffect(() => {
+        setAssistantSummary(null)
+        setAssistantError('')
+    }, [ projectId ])
+
+    useEffect(() => {
+        if (activeTab === 'assist' && !assistantSummary) {
+            loadAssistantSummary()
+        }
+    }, [ activeTab, assistantSummary, loadAssistantSummary ])
 
     useEffect(() => {
         if (!isProjectAdmin) {
@@ -517,6 +559,7 @@ const Project = () => {
 
                 return [ ...prevMessages, data ]
             })
+            setAssistantSummary(null)
         })
         const unsubscribeError = receiveMessage('project-message-error', data => {
             setSocketError(data.error)
@@ -614,10 +657,7 @@ const Project = () => {
                         <div className='m-4 rounded-[10px] bg-[#fcebeb] px-3 py-2 text-sm text-[#a32d2d]'>{actionError}</div>
                     )}
                     <div className='flex overflow-x-auto border-b-[0.5px] border-[#d3d1c7] px-4'>
-                        {[
-                            { key: 'chat', label: 'Chat', icon: 'ri-chat-3-line' },
-                            { key: 'work', label: 'Work', icon: 'ri-kanban-view-2' },
-                        ].map(tab => (
+                        {workspaceTabs.map(tab => (
                             <button
                                 type='button'
                                 key={tab.key}
@@ -953,6 +993,126 @@ const Project = () => {
                                     </div>
                                 </aside>
                             </div>
+                        </section>
+                    )}
+
+                    {activeTab === 'assist' && (
+                        <section className='min-h-[620px] space-y-5 p-4 sm:p-6 lg:p-7'>
+                            <div className='rounded-[16px] bg-[#2c2c2a] p-5 text-[#f0efe9] shadow-sm sm:p-6'>
+                                <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                                    <div className='min-w-0'>
+                                        <div className='mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#d3d1c7]'>
+                                            <i className='ri-robot-2-line'></i>
+                                            Assist bot
+                                        </div>
+                                        <h2 className='font-display text-3xl leading-tight'>Project intelligence</h2>
+                                        <div className='mt-4 flex flex-wrap gap-2 text-[11px] font-semibold text-[#2c2c2a]'>
+                                            <span className='rounded-full bg-[#f0efe9] px-3 py-1'>{assistantSummary?.stats?.messages ?? projectPulse.messages} messages</span>
+                                            <span className='rounded-full bg-[#eaf3de] px-3 py-1'>{assistantSummary?.stats?.tickets ?? projectPulse.tickets} tickets</span>
+                                            <span className='rounded-full bg-[#faeeda] px-3 py-1'>{assistantSummary?.stats?.openTickets ?? (project?.tickets?.filter(ticket => ticket.status !== 'done').length || 0)} open</span>
+                                            {assistantSummary?.source && (
+                                                <span className='rounded-full bg-white/15 px-3 py-1 text-[#f0efe9]'>{assistantSummary.source === 'ai' ? 'Gemini' : 'Local'} analysis</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        type='button'
+                                        onClick={loadAssistantSummary}
+                                        disabled={isAssistantLoading}
+                                        className='inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-[10px] bg-[#f0efe9] px-4 text-sm font-medium text-[#2c2c2a] hover:bg-white disabled:cursor-not-allowed disabled:bg-[#b4b2a9]'
+                                    >
+                                        <i className={isAssistantLoading ? 'ri-loader-4-line animate-spin' : 'ri-refresh-line'}></i>
+                                        {isAssistantLoading ? 'Analyzing' : 'Refresh'}
+                                    </button>
+                                </div>
+                                {assistantSummary?.aiStatus && (
+                                    <p className='mt-4 rounded-[10px] bg-white/10 px-3 py-2 text-xs leading-5 text-[#d3d1c7]'>Local fallback: {assistantSummary.aiStatus}</p>
+                                )}
+                            </div>
+
+                            {assistantError && (
+                                <div className='rounded-[10px] bg-[#fcebeb] px-3 py-2 text-sm text-[#a32d2d]'>{assistantError}</div>
+                            )}
+
+                            {isAssistantLoading && (
+                                <div className='grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]'>
+                                    <div className='space-y-4'>
+                                        <div className='h-44 animate-pulse rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5]'></div>
+                                        <div className='h-52 animate-pulse rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5]'></div>
+                                    </div>
+                                    <div className='h-80 animate-pulse rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5]'></div>
+                                </div>
+                            )}
+
+                            {!isAssistantLoading && !assistantSummary && (
+                                <div className='rounded-[14px] border-[0.5px] border-dashed border-[#d3d1c7] bg-[#f8f8f5] p-8 text-center'>
+                                    <button
+                                        type='button'
+                                        onClick={loadAssistantSummary}
+                                        className='inline-flex items-center gap-2 rounded-[10px] bg-[#2c2c2a] px-4 py-3 text-sm font-medium text-[#f0efe9] hover:bg-[#444441]'
+                                    >
+                                        <i className='ri-robot-2-line'></i>
+                                        Run assistant
+                                    </button>
+                                </div>
+                            )}
+
+                            {!isAssistantLoading && assistantSummary && (
+                                <div className='grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]'>
+                                    <div className='space-y-5'>
+                                        <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-5 shadow-sm'>
+                                            <div className='mb-4 flex items-center gap-2'>
+                                                <span className='inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#eaf3de] text-[#3b6d11]'>
+                                                    <i className='ri-chat-quote-line'></i>
+                                                </span>
+                                                <h3 className='text-[13px] font-semibold uppercase tracking-[0.08em] text-[#5f5e5a]'>Conversation summary</h3>
+                                            </div>
+                                            <p className='text-sm leading-7 text-[#2c2c2a]'>{assistantSummary.conversationSummary}</p>
+                                        </section>
+
+                                        <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-5 shadow-sm'>
+                                            <div className='mb-4 flex items-center gap-2'>
+                                                <span className='inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#faeeda] text-[#854f0b]'>
+                                                    <i className='ri-route-line'></i>
+                                                </span>
+                                                <h3 className='text-[13px] font-semibold uppercase tracking-[0.08em] text-[#5f5e5a]'>Next steps</h3>
+                                            </div>
+                                            <div className='space-y-3'>
+                                                {assistantSummary.recommendedNextSteps?.map((step, index) => (
+                                                    <div key={`${step}-${index}`} className='flex gap-3 rounded-[10px] bg-[#f8f8f5] p-3 text-sm leading-6 text-[#2c2c2a]'>
+                                                        <span className='mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-[#888780]'>{index + 1}</span>
+                                                        <span>{step}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    </div>
+
+                                    <aside className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-5 shadow-sm'>
+                                        <div className='mb-4 flex items-center justify-between'>
+                                            <h3 className='text-[13px] font-semibold uppercase tracking-[0.08em] text-[#5f5e5a]'>Important tickets</h3>
+                                            <span className='rounded-full bg-[#f8f8f5] px-2.5 py-1 text-xs font-semibold text-[#888780]'>{assistantSummary.importantTickets?.length || 0}</span>
+                                        </div>
+                                        <div className='space-y-3'>
+                                            {assistantSummary.importantTickets?.length ? assistantSummary.importantTickets.map(ticket => (
+                                                <article key={ticket.ticketId || ticket.title} className='rounded-[12px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] p-4'>
+                                                    <div className='mb-3 flex items-start justify-between gap-3'>
+                                                        <h4 className='text-sm font-medium leading-6 text-[#2c2c2a]'>{ticket.title}</h4>
+                                                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[ ticket.priority ] || priorityClasses.medium}`}>{ticket.priority || 'medium'}</span>
+                                                    </div>
+                                                    <div className='mb-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[#888780]'>
+                                                        <span className='rounded-full bg-white px-2.5 py-1'>{statusLabels[ ticket.status ] || ticket.status}</span>
+                                                        <span className='rounded-full bg-white px-2.5 py-1'>{ticket.assignee || 'Unassigned'}</span>
+                                                    </div>
+                                                    <p className='text-xs leading-5 text-[#5f5e5a]'>{ticket.reason}</p>
+                                                </article>
+                                            )) : (
+                                                <p className='rounded-[10px] border-[0.5px] border-dashed border-[#d3d1c7] p-4 text-sm font-medium text-[#888780]'>No open tickets need attention.</p>
+                                            )}
+                                        </div>
+                                    </aside>
+                                </div>
+                            )}
                         </section>
                     )}
                 </div>

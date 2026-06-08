@@ -65,6 +65,11 @@ router.post('/:projectId/tickets/:ticketId/submissions',
     projectController.createTicketSubmission
 )
 
+router.post('/:projectId/assistant/summary',
+    authMiddleWare.authUser,
+    projectController.getProjectAssistantSummary
+)
+
 router.put('/update-file-tree',
     authMiddleWare.authUser,
     body('projectId').isString().withMessage('Project ID is required'),

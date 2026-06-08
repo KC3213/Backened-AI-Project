@@ -93,6 +93,7 @@ npm run preview  # preview the production build
 - Auth endpoints are under `/users`.
 - Project endpoints are under `/projects`.
 - AI generation is available through `/ai`.
+- Project assistant summaries are available through `POST /projects/:projectId/assistant/summary`.
 - Socket.IO uses the same backend URL and requires a valid JWT plus `projectId`.
 - Send `@ai` in a project chat message to ask Gemini for a response in the project chat.
 - Invite links use `/join/:inviteCode`; users can also paste an invite code on the dashboard.
@@ -101,6 +102,7 @@ npm run preview  # preview the production build
 - Only the project admin, currently the project owner, can create sprints.
 - Tickets support assignment, priority, and status updates.
 - The Work tab includes the project board and a My tasks section for tickets assigned to the logged-in user.
+- The Assistant tab summarizes project conversation, ranks important tickets, and falls back to local analysis when Gemini is unavailable.
 
 ## Workflow Notes
 
@@ -113,6 +115,8 @@ See [docs/CHAT_AND_WORKFLOW_ARCHITECTURE.md](docs/CHAT_AND_WORKFLOW_ARCHITECTURE
 See [docs/UI_REDESIGN_IMPLEMENTATION.md](docs/UI_REDESIGN_IMPLEMENTATION.md) for the current UI redesign implementation details and browser verification notes.
 
 See [docs/ADMIN_INVITE_AND_ACCOUNT_UPDATES.md](docs/ADMIN_INVITE_AND_ACCOUNT_UPDATES.md) for the admin-only invite rule and dashboard account/settings sidebar details.
+
+See [docs/AI_ASSISTANT_BOT.md](docs/AI_ASSISTANT_BOT.md) for the project assistant bot implementation, fallback ranking logic, bottlenecks, and scaling notes.
 
 ## Troubleshooting
 

@@ -101,9 +101,28 @@ const model = genAI.getGenerativeModel({
     `
 });
 
+const projectAssistantModel = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.2,
+    },
+    systemInstruction: `You are a concise project management assistant for a Jira-style team workspace. Summarize project conversation, identify the most important tickets, and suggest practical next steps. Return only valid JSON that matches the requested shape.`
+});
+
 export const generateResult = async (prompt) => {
 
     const result = await model.generateContent(prompt);
+
+    return result.response.text()
+}
+
+export const generateProjectAssistantResult = async (prompt) => {
+    if (!process.env.GOOGLE_AI_KEY) {
+        throw new Error('GOOGLE_AI_KEY is not configured')
+    }
+
+    const result = await projectAssistantModel.generateContent(prompt);
 
     return result.response.text()
 }
