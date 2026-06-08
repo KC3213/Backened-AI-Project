@@ -27,7 +27,7 @@ The backend then builds a compact project payload:
 - ticket title, description, priority, status, assignee, submissions, and timestamps
 - counts for messages, tickets, and open tickets
 
-If `GOOGLE_AI_KEY` is configured, the backend asks Gemini for JSON in this shape:
+If `GROQ_API_KEY` is configured, the backend asks Groq for JSON in this shape:
 
 ```json
 {
@@ -46,7 +46,7 @@ If `GOOGLE_AI_KEY` is configured, the backend asks Gemini for JSON in this shape
 }
 ```
 
-The response is normalized before sending it to the frontend. If Gemini is unavailable, not configured, or returns invalid JSON, the backend falls back to a local heuristic summary instead of failing the feature.
+The response is normalized before sending it to the frontend. If Groq is unavailable, not configured, or returns invalid JSON, the backend falls back to a local heuristic summary instead of failing the feature.
 
 ## Local Fallback Logic
 
@@ -57,7 +57,7 @@ The local assistant ranks open tickets using simple project-management signals:
 - unassigned open tickets get extra attention
 - tickets with submissions are highlighted because they may need review
 
-This fallback is useful for development, demos, and environments without a Gemini key.
+This fallback is useful for development, demos, and environments without a Groq key.
 
 ## Frontend Flow
 
@@ -70,7 +70,7 @@ Chat | Work | Assistant
 The Assistant tab shows:
 
 - project intelligence header with message/ticket/open-ticket counts
-- source badge showing Gemini or Local analysis
+- source badge showing Groq or Local analysis
 - conversation summary
 - recommended next steps
 - important tickets with priority, status, assignee, and reason
@@ -83,10 +83,10 @@ The current implementation reads the project document and summarizes recent mess
 
 - very large projects with many stored messages
 - large ticket descriptions increasing prompt size
-- repeated manual refreshes calling Gemini
-- AI latency if the Gemini API is slow
+- repeated manual refreshes calling Groq
+- AI latency if the Groq API is slow
 
-The service already limits recent messages and truncates text before sending it to Gemini, which keeps the prompt controlled.
+The service already limits recent messages and truncates text before sending it to Groq, which keeps the prompt controlled.
 
 ## Scaling Plan
 

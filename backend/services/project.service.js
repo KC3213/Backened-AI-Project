@@ -413,7 +413,7 @@ const normalizeAssistantSummary = (content, fallbackSummary) => {
 
     return {
         ...fallbackSummary,
-        source: 'ai',
+        source: 'groq',
         conversationSummary: parsed.conversationSummary?.toString?.() || fallbackSummary.conversationSummary,
         importantTickets: normalizeAssistantTickets(parsed.importantTickets, fallbackSummary.importantTickets),
         recommendedNextSteps: recommendedNextSteps.length ? recommendedNextSteps : fallbackSummary.recommendedNextSteps,

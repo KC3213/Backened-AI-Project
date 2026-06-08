@@ -1011,7 +1011,7 @@ const Project = () => {
                                             <span className='rounded-full bg-[#eaf3de] px-3 py-1'>{assistantSummary?.stats?.tickets ?? projectPulse.tickets} tickets</span>
                                             <span className='rounded-full bg-[#faeeda] px-3 py-1'>{assistantSummary?.stats?.openTickets ?? (project?.tickets?.filter(ticket => ticket.status !== 'done').length || 0)} open</span>
                                             {assistantSummary?.source && (
-                                                <span className='rounded-full bg-white/15 px-3 py-1 text-[#f0efe9]'>{assistantSummary.source === 'ai' ? 'Gemini' : 'Local'} analysis</span>
+                                                <span className='rounded-full bg-white/15 px-3 py-1 text-[#f0efe9]'>{assistantSummary.source === 'groq' ? 'Groq' : 'Local'} analysis</span>
                                             )}
                                         </div>
                                     </div>

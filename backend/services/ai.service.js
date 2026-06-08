@@ -101,14 +101,9 @@ const model = genAI.getGenerativeModel({
     `
 });
 
-const projectAssistantModel = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.2,
-    },
-    systemInstruction: `You are a concise project management assistant for a Jira-style team workspace. Summarize project conversation, identify the most important tickets, and suggest practical next steps. Return only valid JSON that matches the requested shape.`
-});
+const groqChatCompletionsUrl = process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions'
+const groqProjectAssistantModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
+const projectAssistantSystemInstruction = `You are a concise project management assistant for a Jira-style team workspace. Summarize project conversation, identify the most important tickets, and suggest practical next steps. Return only valid JSON that matches the requested shape.`
 
 export const generateResult = async (prompt) => {
 
@@ -118,11 +113,46 @@ export const generateResult = async (prompt) => {
 }
 
 export const generateProjectAssistantResult = async (prompt) => {
-    if (!process.env.GOOGLE_AI_KEY) {
-        throw new Error('GOOGLE_AI_KEY is not configured')
+    if (!process.env.GROQ_API_KEY) {
+        throw new Error('GROQ_API_KEY is not configured')
     }
 
-    const result = await projectAssistantModel.generateContent(prompt);
+    const response = await fetch(groqChatCompletionsUrl, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: groqProjectAssistantModel,
+            messages: [
+                {
+                    role: 'system',
+                    content: projectAssistantSystemInstruction,
+                },
+                {
+                    role: 'user',
+                    content: prompt,
+                },
+            ],
+            temperature: 0.2,
+            response_format: {
+                type: 'json_object',
+            },
+        }),
+    })
 
-    return result.response.text()
+    if (!response.ok) {
+        const errorBody = await response.text()
+        throw new Error(`Groq request failed with status ${response.status}: ${errorBody}`)
+    }
+
+    const result = await response.json()
+    const content = result.choices?.[ 0 ]?.message?.content
+
+    if (!content) {
+        throw new Error('Groq response did not include assistant content')
+    }
+
+    return content
 }

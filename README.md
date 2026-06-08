@@ -1,11 +1,11 @@
 # Backend AI Project
 
-Collaborative project workspace built with an Express API, MongoDB, Redis, Socket.IO, Google Gemini, and a Vite React frontend. Users can register, create projects, invite collaborators, chat in a project room, ask `@ai` for help, and manage project sprints/tickets.
+Collaborative project workspace built with an Express API, MongoDB, Redis, Socket.IO, Google Gemini for chat `@ai`, Groq for project assistant summaries, and a Vite React frontend. Users can register, create projects, invite collaborators, chat in a project room, ask `@ai` for help, and manage project sprints/tickets.
 
 ## Project Structure
 
 ```text
-backend/   Express API, MongoDB models, JWT auth, Redis logout blacklist, Socket.IO, Gemini service
+backend/   Express API, MongoDB models, JWT auth, Redis logout blacklist, Socket.IO, Gemini chat, Groq assistant
 frontend/  Vite React app, project dashboard, realtime chat, invite flow, work board
 ```
 
@@ -14,7 +14,8 @@ frontend/  Vite React app, project dashboard, realtime chat, invite flow, work b
 - Node.js 20 or newer
 - MongoDB running locally or a MongoDB Atlas URI
 - Redis running locally or a reachable Redis host
-- Google AI Studio/Gemini API key
+- Google AI Studio/Gemini API key for chat `@ai`
+- Groq API key for the project Assistant tab
 
 ## Environment Setup
 
@@ -93,7 +94,7 @@ npm run preview  # preview the production build
 - Auth endpoints are under `/users`.
 - Project endpoints are under `/projects`.
 - AI generation is available through `/ai`.
-- Project assistant summaries are available through `POST /projects/:projectId/assistant/summary`.
+- Project assistant summaries are available through `POST /projects/:projectId/assistant/summary` and use Groq when `GROQ_API_KEY` is configured.
 - Socket.IO uses the same backend URL and requires a valid JWT plus `projectId`.
 - Send `@ai` in a project chat message to ask Gemini for a response in the project chat.
 - Invite links use `/join/:inviteCode`; users can also paste an invite code on the dashboard.
@@ -102,7 +103,7 @@ npm run preview  # preview the production build
 - Only the project admin, currently the project owner, can create sprints.
 - Tickets support assignment, priority, and status updates.
 - The Work tab includes the project board and a My tasks section for tickets assigned to the logged-in user.
-- The Assistant tab summarizes project conversation, ranks important tickets, and falls back to local analysis when Gemini is unavailable.
+- The Assistant tab summarizes project conversation, ranks important tickets, and falls back to local analysis when Groq is unavailable.
 
 ## Workflow Notes
 
