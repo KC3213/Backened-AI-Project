@@ -241,6 +241,25 @@ const getAssistantTicketShape = (ticket) => ({
     reason: getTicketImportanceReason(ticket),
 })
 
+const isGeneratedAiErrorMessage = (message) => {
+    const senderId = getEntityId(message.sender)
+    const senderEmail = message.sender?.email?.toString?.().toLowerCase?.() || ''
+    const messageText = message.message?.toString?.() || ''
+
+    return (senderId === 'ai' || senderEmail === 'ai')
+        && (
+            messageText.includes('AI failed to respond')
+            || messageText.includes('GoogleGenerativeAI Error')
+            || messageText.includes('fetch failed')
+        )
+}
+
+const getAssistantMessages = (project) => {
+    return (project.messages || [])
+        .filter(message => !isGeneratedAiErrorMessage(message))
+        .slice(-40)
+}
+
 const buildConversationSummary = (messages) => {
     if (!messages.length) {
         return 'No project conversation has been recorded yet.'
@@ -303,7 +322,7 @@ const buildRecommendedNextSteps = ({ messages, tickets, importantTickets }) => {
 }
 
 const buildFallbackAssistantSummary = (project) => {
-    const messages = project.messages?.slice(-40) || []
+    const messages = getAssistantMessages(project)
     const tickets = project.tickets || []
     const importantTickets = tickets
         .filter(ticket => ticket.status !== 'done')
@@ -328,7 +347,7 @@ const buildFallbackAssistantSummary = (project) => {
 const getAssistantProjectPayload = (project, fallbackSummary) => ({
     projectName: project.name,
     stats: fallbackSummary.stats,
-    recentMessages: (project.messages || []).slice(-40).map(message => ({
+    recentMessages: getAssistantMessages(project).map(message => ({
         sender: getPersonLabel(message.sender, 'Unknown'),
         message: truncateText(message.message, 300),
         createdAt: message.createdAt,
