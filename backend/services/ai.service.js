@@ -194,7 +194,11 @@ const parseHttpResponse = (responseBuffer) => {
     const headerEnd = responseBuffer.indexOf('\r\n\r\n', 0, 'ascii')
 
     if (headerEnd === -1) {
-        throw new Error('Groq response did not include HTTP headers')
+        if (!responseBuffer.length) {
+            throw new Error('Groq response socket closed before sending data')
+        }
+
+        throw new Error(`Groq response did not include HTTP headers; received ${responseBuffer.length} bytes`)
     }
 
     const headerText = responseBuffer.subarray(0, headerEnd).toString('utf8')
@@ -250,11 +254,15 @@ const postJsonThroughHttpProxy = ({ targetUrl, proxyUrl, headers, body }) => {
             timeout: 15000,
         })
 
-        connectRequest.on('connect', (connectResponse, proxySocket) => {
+        connectRequest.on('connect', (connectResponse, proxySocket, head) => {
             if (connectResponse.statusCode !== 200) {
                 proxySocket.destroy()
                 settleReject(new Error(`Proxy CONNECT failed with status ${connectResponse.statusCode}`))
                 return
+            }
+
+            if (head?.length) {
+                proxySocket.unshift(head)
             }
 
             const secureSocket = tls.connect({
@@ -270,22 +278,22 @@ const postJsonThroughHttpProxy = ({ targetUrl, proxyUrl, headers, body }) => {
                     .map(([ key, value ]) => `${key}: ${value}`)
                     .join('\r\n')
 
-                secureSocket.write(`POST ${targetUrl.pathname}${targetUrl.search} HTTP/1.1\r\n${requestHeaderText}\r\n\r\n`)
-                secureSocket.write(body)
-                secureSocket.end()
+                secureSocket.write(`POST ${targetUrl.pathname}${targetUrl.search} HTTP/1.1\r\n${requestHeaderText}\r\n\r\n${body}`)
             })
             const responseChunks = []
-
-            secureSocket.on('data', chunk => {
-                responseChunks.push(chunk)
-            })
-            secureSocket.on('end', () => {
+            const resolveResponse = () => {
                 try {
                     settleResolve(parseHttpResponse(Buffer.concat(responseChunks)))
                 } catch (error) {
                     settleReject(error)
                 }
+            }
+
+            secureSocket.on('data', chunk => {
+                responseChunks.push(chunk)
             })
+            secureSocket.on('end', resolveResponse)
+            secureSocket.on('close', resolveResponse)
             secureSocket.on('timeout', () => {
                 secureSocket.destroy(new Error('Groq request timed out after proxy CONNECT'))
             })
