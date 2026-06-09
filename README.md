@@ -119,6 +119,8 @@ See [docs/ADMIN_INVITE_AND_ACCOUNT_UPDATES.md](docs/ADMIN_INVITE_AND_ACCOUNT_UPD
 
 See [docs/AI_ASSISTANT_BOT.md](docs/AI_ASSISTANT_BOT.md) for the project assistant bot implementation, fallback ranking logic, bottlenecks, and scaling notes.
 
+See [docs/GROQ_ASSISTANT_DEBUGGING.md](docs/GROQ_ASSISTANT_DEBUGGING.md) for the Groq API key, proxy, fallback, and backend diagnostic debugging trail.
+
 ## Troubleshooting
 
 - If protected routes return `Unauthorized User`, confirm the frontend has a token in local storage and `VITE_API_URL` points to the backend.
