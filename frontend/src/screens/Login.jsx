@@ -22,13 +22,23 @@ const Login = () => {
 
         try {
             const res = await axios.post('/users/login', {
-                email,
+                email: email.trim(),
                 password,
             })
 
             startSession(res.data)
             navigate('/', { replace: true })
         } catch (err) {
+            if (err.response?.status === 404 && err.response?.data?.code === 'USER_NOT_FOUND') {
+                navigate('/register', {
+                    replace: true,
+                    state: {
+                        email: email.trim(),
+                    },
+                })
+                return
+            }
+
             setError(getErrorMessage(err, 'Could not log in'))
         } finally {
             setIsSubmitting(false)

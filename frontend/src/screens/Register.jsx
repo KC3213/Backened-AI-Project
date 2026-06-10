@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AuthForm from '../components/AuthForm'
 import axios from '../config/axios'
 import { useUser } from '../context/userContext'
@@ -10,14 +10,16 @@ import { requestGoogleCredential } from '../utils/googleAuth'
 const Register = () => {
     const [ registrationStep, setRegistrationStep ] = useState('account')
     const [ name, setName ] = useState('')
-    const [ email, setEmail ] = useState('')
+    const navigate = useNavigate()
+    const location = useLocation()
+    const redirectedEmail = typeof location.state?.email === 'string' ? location.state.email : ''
+    const [ email, setEmail ] = useState(redirectedEmail)
     const [ password, setPassword ] = useState('')
     const [ avatarStyle, setAvatarStyle ] = useState(fallbackAvatarStyle)
     const [ error, setError ] = useState('')
     const [ isSubmitting, setIsSubmitting ] = useState(false)
     const [ isGoogleSubmitting, setIsGoogleSubmitting ] = useState(false)
     const { startSession } = useUser()
-    const navigate = useNavigate()
 
     const submitHandler = async (event) => {
         event.preventDefault()
