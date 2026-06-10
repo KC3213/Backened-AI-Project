@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema({
     avatar: {
         style: {
             type: String,
-            default: 'adventurer',
+            default: 'avatar-blue',
             trim: true,
         },
         seed: {
@@ -50,7 +50,7 @@ const userSchema = new mongoose.Schema({
         },
         url: {
             type: String,
-            default: '',
+            default: '/avatars/avatar-blue.svg',
             trim: true,
         },
     }

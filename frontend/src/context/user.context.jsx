@@ -18,6 +18,10 @@ export const UserProvider = ({ children }) => {
     setUser(sessionUser)
   }, [])
 
+  const updateSessionUser = useCallback((sessionUser) => {
+    setUser(sessionUser)
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       if (localStorage.getItem(tokenKey)) {
@@ -52,8 +56,9 @@ export const UserProvider = ({ children }) => {
     user,
     loading,
     startSession,
+    updateSessionUser,
     logout,
-  }), [ loading, logout, startSession, user ])
+  }), [ loading, logout, startSession, updateSessionUser, user ])
 
   return (
     <UserContext.Provider value={value}>

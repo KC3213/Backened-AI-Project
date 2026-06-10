@@ -49,6 +49,28 @@ const buildAvatar = ({ style, seed }) => {
     }
 }
 
+export const ensureLocalAvatar = async (user) => {
+    if (!user) {
+        return user
+    }
+
+    const avatar = buildAvatar({
+        style: user.avatar?.style,
+        seed: user.avatar?.seed || user.name || user.email,
+    })
+
+    if (
+        user.avatar?.style !== avatar.style ||
+        user.avatar?.seed !== avatar.seed ||
+        user.avatar?.url !== avatar.url
+    ) {
+        user.avatar = avatar
+        await user.save()
+    }
+
+    return user
+}
+
 export const createUser = async ({
     name, email, password, avatarStyle, avatarSeed
 }) => {
@@ -75,6 +97,42 @@ export const createUser = async ({
 
     return user;
 
+}
+
+export const updateUserProfile = async ({
+    userId, email, name, avatarStyle, avatarSeed
+}) => {
+    const query = userId ? { _id: userId } : { email }
+    const user = await userModel.findOne(query)
+
+    if (!user) {
+        throw new Error('User not found')
+    }
+
+    const trimmedName = typeof name === 'string' ? name.trim() : ''
+
+    if (trimmedName && (trimmedName.length < 2 || trimmedName.length > 50)) {
+        throw new Error('Name must be 2 to 50 characters long')
+    }
+
+    if (trimmedName) {
+        user.name = trimmedName
+    }
+
+    if (typeof avatarStyle === 'string' && avatarStyle.trim()) {
+        user.avatar = buildAvatar({
+            style: avatarStyle.trim(),
+            seed: (avatarSeed || trimmedName || user.name || user.email).trim(),
+        })
+    } else {
+        user.avatar = buildAvatar({
+            style: user.avatar?.style,
+            seed: user.avatar?.seed || trimmedName || user.name || user.email,
+        })
+    }
+
+    await user.save()
+    return user
 }
 
 export const findOrCreateGoogleUser = async ({ email, name, googleId }) => {

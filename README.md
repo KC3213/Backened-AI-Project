@@ -104,6 +104,7 @@ npm run preview  # preview the production build
 - Tickets support assignment, priority, and status updates.
 - The Work tab includes the project board and a My tasks section for tickets assigned to the logged-in user.
 - The Assistant tab summarizes project conversation, ranks important tickets, and falls back to local analysis when Groq is unavailable.
+- Users can update their display name and local avatar from the dashboard Account panel.
 
 ## Workflow Notes
 
@@ -121,9 +122,12 @@ See [docs/AI_ASSISTANT_BOT.md](docs/AI_ASSISTANT_BOT.md) for the project assista
 
 See [docs/GROQ_ASSISTANT_DEBUGGING.md](docs/GROQ_ASSISTANT_DEBUGGING.md) for the Groq API key, proxy, fallback, and backend diagnostic debugging trail.
 
+See [docs/AVATAR_PROFILE_UPDATE_FIX.md](docs/AVATAR_PROFILE_UPDATE_FIX.md) for the avatar persistence bug, root cause, and profile update flow.
+
 ## Troubleshooting
 
 - If protected routes return `Unauthorized User`, confirm the frontend has a token in local storage and `VITE_API_URL` points to the backend.
+- If the dashboard still shows an old avatar, choose the avatar again in the Account panel and click `Save profile`; the new choice is stored through `PUT /users/profile`.
 - If project routes hang or fail after login, confirm Redis and MongoDB are running and match `backend/.env`.
 - If the Assistant tab shows `Local fallback: fetch failed` while `GROQ_API_KEY` is set, confirm the backend process can reach Groq. Behind a corporate proxy, set `GROQ_PROXY_URL` in `backend/.env` or start the backend with `HTTP_PROXY` and `HTTPS_PROXY`; the Groq helper reads those environment variables on Node 20. For faster summaries, set `GROQ_MODEL=llama-3.1-8b-instant`. Run `npm run check:groq` from `backend/` to test the exact assistant Groq path and print the provider/model/proxy/error without exposing the API key.
 - If your own saved chat messages look like another user's messages after refresh, confirm `/users/me` returns a user object with `_id`.

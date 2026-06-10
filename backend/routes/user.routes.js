@@ -26,6 +26,12 @@ router.post('/google',
     userController.googleLoginController);
 
 router.get('/profile', authMiddleware.authUser, userController.profileController);
+router.put('/profile',
+    authMiddleware.authUser,
+    body('name').optional().isString().trim().isLength({ min: 2, max: 50 }).withMessage('Name must be 2 to 50 characters long'),
+    body('avatarStyle').optional().isString().withMessage('Avatar style must be a string'),
+    body('avatarSeed').optional().isString().withMessage('Avatar seed must be a string'),
+    userController.updateProfileController);
 
 
 router.get('/logout', authMiddleware.authUser, userController.logoutController);

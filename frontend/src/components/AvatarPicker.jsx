@@ -1,7 +1,9 @@
 import React from 'react'
-import { avatarStyles, buildAvatarUrl } from '../utils/avatar'
+import { avatarStyles, buildAvatarUrl, resolveAvatarStyle } from '../utils/avatar'
 
 const AvatarPicker = ({ selectedStyle, onSelect }) => {
+    const safeSelectedStyle = resolveAvatarStyle(selectedStyle)
+
     return (
         <div>
             <div className='mb-2 flex items-center justify-between gap-3'>
@@ -10,7 +12,7 @@ const AvatarPicker = ({ selectedStyle, onSelect }) => {
             </div>
             <div className='grid grid-cols-3 gap-2'>
                 {avatarStyles.map(option => {
-                    const isSelected = selectedStyle === option.id
+                    const isSelected = safeSelectedStyle === option.id
 
                     return (
                         <button

@@ -5,7 +5,8 @@ import { useUser } from '../context/userContext'
 import { getErrorMessage } from '../utils/getErrorMessage'
 import WorkspaceBackdrop from '../components/WorkspaceBackdrop'
 import UserAvatar from '../components/UserAvatar'
-import { getDisplayName } from '../utils/avatar'
+import AvatarPicker from '../components/AvatarPicker'
+import { fallbackAvatarStyle, getAvatarStyle, getDisplayName } from '../utils/avatar'
 
 const pendingTaskColumns = [
     { key: 'todo', label: 'To do' },
@@ -41,7 +42,12 @@ const Home = () => {
     const [ createError, setCreateError ] = useState('')
     const [ isCreating, setIsCreating ] = useState(false)
     const [ projects, setProjects ] = useState([])
-    const { user, logout } = useUser()
+    const [ profileName, setProfileName ] = useState('')
+    const [ profileAvatarStyle, setProfileAvatarStyle ] = useState(fallbackAvatarStyle)
+    const [ profileError, setProfileError ] = useState('')
+    const [ profileMessage, setProfileMessage ] = useState('')
+    const [ isSavingProfile, setIsSavingProfile ] = useState(false)
+    const { user, logout, updateSessionUser } = useUser()
     const navigate = useNavigate()
     const currentUserId = user?._id?.toString()
 
@@ -156,9 +162,36 @@ const Home = () => {
         navigate('/login', { replace: true })
     }
 
+    const updateProfile = async (event) => {
+        event.preventDefault()
+        setProfileError('')
+        setProfileMessage('')
+        setIsSavingProfile(true)
+
+        try {
+            const res = await axios.put('/users/profile', {
+                name: profileName,
+                avatarStyle: profileAvatarStyle,
+                avatarSeed: profileName || user?.email,
+            })
+
+            updateSessionUser(res.data.user)
+            setProfileMessage('Profile updated')
+        } catch (err) {
+            setProfileError(getErrorMessage(err, 'Could not update profile'))
+        } finally {
+            setIsSavingProfile(false)
+        }
+    }
+
     useEffect(() => {
         loadProjects()
     }, [ loadProjects ])
+
+    useEffect(() => {
+        setProfileName(getDisplayName(user))
+        setProfileAvatarStyle(getAvatarStyle(user))
+    }, [ user ])
 
     return (
         <main className='workspace-page min-h-screen text-[#2c2c2a]'>
@@ -262,7 +295,7 @@ const Home = () => {
                 </div>
 
                 <aside className='order-1 space-y-3 lg:w-[260px]'>
-                    <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
+                    <form onSubmit={updateProfile} className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
                         <div className='mb-4 flex items-center gap-3'>
                             <UserAvatar user={user} size='lg' />
                             <div className='min-w-0'>
@@ -289,7 +322,38 @@ const Home = () => {
                                 <span className='text-[#2c2c2a]'>{dashboardSummary.totalTicketCount}</span>
                             </div>
                         </div>
-                    </section>
+
+                        <div className='mt-4'>
+                            <label className='mb-1.5 block text-[12px] font-medium uppercase tracking-[0.04em] text-[#5f5e5a]' htmlFor='profile-name'>Display name</label>
+                            <input
+                                id='profile-name'
+                                value={profileName}
+                                onChange={(event) => setProfileName(event.target.value)}
+                                className='block w-full rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-[#f8f8f5] px-3 py-[10px] text-sm text-[#2c2c2a] outline-none focus:border-[#888780] focus:bg-white'
+                                minLength={2}
+                                maxLength={50}
+                                required
+                            />
+                        </div>
+
+                        <div className='mt-4'>
+                            <AvatarPicker
+                                selectedStyle={profileAvatarStyle}
+                                onSelect={setProfileAvatarStyle}
+                            />
+                        </div>
+
+                        {profileError && <p className='mt-3 rounded-[10px] bg-[#fcebeb] px-3 py-2 text-sm text-[#a32d2d]'>{profileError}</p>}
+                        {profileMessage && <p className='mt-3 rounded-[10px] bg-[#eaf3de] px-3 py-2 text-sm text-[#3b6d11]'>{profileMessage}</p>}
+
+                        <button
+                            type='submit'
+                            disabled={isSavingProfile}
+                            className='mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#2c2c2a] px-3 py-[10px] text-sm font-medium text-[#f0efe9] hover:bg-[#444441] disabled:cursor-not-allowed disabled:bg-[#b4b2a9]'>
+                            <i className='ri-save-3-line'></i>
+                            {isSavingProfile ? 'Saving...' : 'Save profile'}
+                        </button>
+                    </form>
 
                     <section className='rounded-[14px] border-[0.5px] border-[#d3d1c7] bg-white p-4'>
                         <h2 className='mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888780]'>Settings</h2>

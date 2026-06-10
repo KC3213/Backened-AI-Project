@@ -52,12 +52,18 @@ export const buildAvatarUrl = ({ style = fallbackAvatarStyle } = {}) => {
     return avatarStyles.find(option => option.id === safeStyle)?.path || avatarStyles[ 0 ].path
 }
 
-export const getAvatarUrl = (user = {}) => {
-    if (user?.avatar?.url?.startsWith('/avatars/')) {
-        return user.avatar.url
+export const getAvatarStyle = (user = {}) => {
+    if (user?.avatar?.style) {
+        return resolveAvatarStyle(user.avatar.style)
     }
 
+    const styleFromUrl = user?.avatar?.url?.match(/\/avatars\/([^/.]+)\.svg$/)?.[ 1 ]
+
+    return resolveAvatarStyle(styleFromUrl)
+}
+
+export const getAvatarUrl = (user = {}) => {
     return buildAvatarUrl({
-        style: user?.avatar?.style,
+        style: getAvatarStyle(user),
     })
 }

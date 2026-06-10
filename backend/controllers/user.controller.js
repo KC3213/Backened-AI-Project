@@ -14,6 +14,8 @@ export const getMe = async (req, res) => {
         return res.status(404).json({ error: 'User not found' });
     }
 
+    await userService.ensureLocalAvatar(user);
+
     res.status(200).json({ user });
   } catch (err) {
     res.status(500).json({ error: 'Something went wrong' });
@@ -67,6 +69,8 @@ export const loginController = async (req, res) => {
                 errors: 'Invalid credentials'
             })
         }
+
+        await userService.ensureLocalAvatar(user);
 
         const token = await user.generateJWT();
 
@@ -127,12 +131,36 @@ export const googleLoginController = async (req, res) => {
             googleId: googleProfile.sub,
         });
 
+        await userService.ensureLocalAvatar(user);
+
         const token = await user.generateJWT();
 
         res.status(200).json({ user, token });
     } catch (err) {
         console.log(err);
         res.status(400).send(err.message);
+    }
+}
+
+export const updateProfileController = async (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const user = await userService.updateUserProfile({
+            userId: req.user._id,
+            email: req.user.email,
+            name: req.body.name,
+            avatarStyle: req.body.avatarStyle,
+            avatarSeed: req.body.avatarSeed,
+        });
+
+        res.status(200).json({ user });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
     }
 }
 
