@@ -23,7 +23,7 @@ Backend changes:
 - Added `PUT /users/profile`.
 - Added `updateUserProfile` in `backend/services/user.service.js`.
 - Normalized legacy avatar styles into local downloaded SVG avatars.
-- Changed the default user avatar from legacy `adventurer` to local `avatar-blue`.
+- Changed the default user avatar from legacy `adventurer` to a local avatar SVG.
 - Ensured `/users/me` and login normalize stale avatar data before returning the user.
 
 Frontend changes:
@@ -32,6 +32,7 @@ Frontend changes:
 - Added avatar and display-name editing to the dashboard Account panel.
 - Updated the account panel after a successful save so the avatar changes immediately without requiring logout/login.
 - Made avatar rendering resolve the active style from the saved user object instead of trusting stale URLs.
+- Replaced the old six placeholder avatar choices with the new local avatar SVG set.
 
 ## Expected Behavior
 

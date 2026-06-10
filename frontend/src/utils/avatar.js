@@ -1,21 +1,31 @@
 export const avatarStyles = [
-    { id: 'avatar-blue', label: 'Blue', path: '/avatars/avatar-blue.svg' },
-    { id: 'avatar-green', label: 'Green', path: '/avatars/avatar-green.svg' },
-    { id: 'avatar-gold', label: 'Gold', path: '/avatars/avatar-gold.svg' },
-    { id: 'avatar-rose', label: 'Rose', path: '/avatars/avatar-rose.svg' },
-    { id: 'avatar-indigo', label: 'Indigo', path: '/avatars/avatar-indigo.svg' },
-    { id: 'avatar-slate', label: 'Slate', path: '/avatars/avatar-slate.svg' },
+    { id: 'chameleon_1838761', label: 'Chameleon', path: '/avatars/chameleon_1838761.svg' },
+    { id: 'ecosystem_6968177', label: 'Ecosystem', path: '/avatars/ecosystem_6968177.svg' },
+    { id: 'elephant_713996', label: 'Elephant', path: '/avatars/elephant_713996.svg' },
+    { id: 'europasaurus_8352478', label: 'Dino', path: '/avatars/europasaurus_8352478.svg' },
+    { id: 'giraffe_713999', label: 'Giraffe', path: '/avatars/giraffe_713999.svg' },
+    { id: 'hamster_5389252', label: 'Hamster', path: '/avatars/hamster_5389252.svg' },
+    { id: 'owl_5414952', label: 'Owl', path: '/avatars/owl_5414952.svg' },
+    { id: 'penguin_1892824', label: 'Penguin', path: '/avatars/penguin_1892824.svg' },
+    { id: 'seal_456030', label: 'Seal', path: '/avatars/seal_456030.svg' },
+    { id: 'whale_1864513', label: 'Whale', path: '/avatars/whale_1864513.svg' },
 ]
 
 export const fallbackAvatarStyle = avatarStyles[ 0 ].id
 
 const legacyAvatarMap = {
-    adventurer: 'avatar-blue',
-    avataaars: 'avatar-green',
-    bottts: 'avatar-gold',
-    lorelei: 'avatar-rose',
-    notionists: 'avatar-indigo',
-    'pixel-art': 'avatar-slate',
+    adventurer: 'chameleon_1838761',
+    avataaars: 'giraffe_713999',
+    bottts: 'elephant_713996',
+    lorelei: 'penguin_1892824',
+    notionists: 'owl_5414952',
+    'pixel-art': 'hamster_5389252',
+    'avatar-blue': 'chameleon_1838761',
+    'avatar-green': 'ecosystem_6968177',
+    'avatar-gold': 'elephant_713996',
+    'avatar-rose': 'penguin_1892824',
+    'avatar-indigo': 'owl_5414952',
+    'avatar-slate': 'whale_1864513',
 }
 
 export const resolveAvatarStyle = (style) => {

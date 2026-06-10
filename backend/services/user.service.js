@@ -1,24 +1,34 @@
 import userModel from '../models/user.model.js';
 
 const avatarStyles = new Set([
-    'avatar-blue',
-    'avatar-green',
-    'avatar-gold',
-    'avatar-rose',
-    'avatar-indigo',
-    'avatar-slate',
+    'chameleon_1838761',
+    'ecosystem_6968177',
+    'elephant_713996',
+    'europasaurus_8352478',
+    'giraffe_713999',
+    'hamster_5389252',
+    'owl_5414952',
+    'penguin_1892824',
+    'seal_456030',
+    'whale_1864513',
 ])
 
 const avatarStyleList = Array.from(avatarStyles)
-const fallbackAvatarStyle = 'avatar-blue'
+const fallbackAvatarStyle = 'chameleon_1838761'
 
 const legacyAvatarMap = {
-    adventurer: 'avatar-blue',
-    avataaars: 'avatar-green',
-    bottts: 'avatar-gold',
-    lorelei: 'avatar-rose',
-    notionists: 'avatar-indigo',
-    'pixel-art': 'avatar-slate',
+    adventurer: 'chameleon_1838761',
+    avataaars: 'giraffe_713999',
+    bottts: 'elephant_713996',
+    lorelei: 'penguin_1892824',
+    notionists: 'owl_5414952',
+    'pixel-art': 'hamster_5389252',
+    'avatar-blue': 'chameleon_1838761',
+    'avatar-green': 'ecosystem_6968177',
+    'avatar-gold': 'elephant_713996',
+    'avatar-rose': 'penguin_1892824',
+    'avatar-indigo': 'owl_5414952',
+    'avatar-slate': 'whale_1864513',
 }
 
 const resolveAvatarStyle = (style) => {
