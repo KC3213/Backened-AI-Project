@@ -86,6 +86,27 @@ export const addUserToProject = async (req, res) => {
 
 }
 
+export const removeUserFromProject = async (req, res) => {
+    try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        })
+
+        const project = await projectService.removeUserFromProject({
+            projectId: req.params.projectId,
+            memberId: req.params.memberId,
+            userId: loggedInUser._id
+        })
+
+        return res.status(200).json({
+            project,
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(400).json({ error: err.message })
+    }
+}
+
 export const getProjectById = async (req, res) => {
 
     const { projectId } = req.params;

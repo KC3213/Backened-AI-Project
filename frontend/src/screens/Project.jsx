@@ -192,6 +192,7 @@ const Project = () => {
     const [ copyState, setCopyState ] = useState('')
     const [ editingMessageId, setEditingMessageId ] = useState('')
     const [ editingMessageText, setEditingMessageText ] = useState('')
+    const [ removingMemberId, setRemovingMemberId ] = useState('')
     const { user, logout } = useUser()
     const messageBox = useRef(null)
 
@@ -303,6 +304,32 @@ const Project = () => {
             setIsModalOpen(false)
         } catch (err) {
             setActionError(getErrorMessage(err, 'Could not add collaborators'))
+        }
+    }
+
+    const removeMember = async (member) => {
+        const memberId = getMemberId(member)
+
+        if (!isProjectAdmin || !projectId || !memberId || memberId === projectOwnerId) {
+            return
+        }
+
+        if (!window.confirm(`Remove ${getDisplayName(member)} from this project? Assigned tickets will become unassigned.`)) {
+            return
+        }
+
+        try {
+            setActionError('')
+            setRemovingMemberId(memberId)
+
+            const res = await axios.delete(`/projects/${projectId}/users/${memberId}`)
+            setProject(res.data.project)
+            setMessages(res.data.project.messages || [])
+            setAssistantSummary(null)
+        } catch (err) {
+            setActionError(getErrorMessage(err, 'Could not remove member'))
+        } finally {
+            setRemovingMemberId('')
         }
     }
 
@@ -1311,14 +1338,27 @@ const Project = () => {
                             {project.users?.map(member => {
                                 const memberId = getMemberId(member)
                                 const role = memberId === projectOwnerId ? 'Owner' : 'Member'
+                                const canRemoveMember = isProjectAdmin && memberId !== projectOwnerId
 
                                 return (
                                     <div key={memberId} className='flex items-center gap-3 rounded-[10px] border-[0.5px] border-[#e8e7e0] bg-[#f8f8f5] p-3'>
                                         <UserAvatar user={member} size='md' />
-                                        <div className='min-w-0'>
+                                        <div className='min-w-0 flex-1'>
                                             <div className='truncate text-sm font-medium text-[#2c2c2a]'>{getDisplayName(member)}</div>
                                             <div className='truncate text-[11px] font-medium text-[#888780]'>{role} · {member.email || member}</div>
                                         </div>
+                                        {canRemoveMember && (
+                                            <button
+                                                type='button'
+                                                onClick={() => removeMember(member)}
+                                                disabled={removingMemberId === memberId}
+                                                className='inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-white text-[#a32d2d] transition hover:bg-[#fcebeb] disabled:cursor-not-allowed disabled:opacity-60'
+                                                aria-label={`Remove ${getDisplayName(member)}`}
+                                                title={`Remove ${getDisplayName(member)}`}
+                                            >
+                                                <i className={removingMemberId === memberId ? 'ri-loader-4-line animate-spin' : 'ri-user-unfollow-line'}></i>
+                                            </button>
+                                        )}
                                     </div>
                                 )
                             })}

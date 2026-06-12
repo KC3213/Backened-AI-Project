@@ -616,6 +616,44 @@ export const addUsersToProject = async ({ projectId, users, userId }) => {
 
 }
 
+export const removeUserFromProject = async ({ projectId, memberId, userId }) => {
+    const project = await getMemberProject({ projectId, userId })
+    await ensureProjectOwner(project)
+    requireProjectOwner(project, userId)
+
+    if (!memberId) {
+        throw new Error('memberId is required')
+    }
+
+    validateObjectId(memberId, 'memberId')
+
+    if (memberId === getProjectOwnerId(project)) {
+        throw new Error('Project admin cannot be removed')
+    }
+
+    const isProjectMember = project.users.some(projectUserId => projectUserId.toString() === memberId)
+
+    if (!isProjectMember) {
+        throw new Error('User is not a project member')
+    }
+
+    project.users = project.users.filter(projectUserId => projectUserId.toString() !== memberId)
+    project.tickets.forEach(ticket => {
+        if (ticket.assignee?.toString() === memberId) {
+            ticket.assignee = null
+        }
+    })
+
+    await project.save()
+    await project.populate('users', userSelectFields)
+    await project.populate('owner', userSelectFields)
+    await project.populate('tickets.assignee', userSelectFields)
+    await project.populate('tickets.createdBy', userSelectFields)
+    await project.populate('tickets.submissions.submittedBy', userSelectFields)
+
+    return serializeProjectForUser(project, userId)
+}
+
 export const getProjectById = async ({ projectId, userId }) => {
     if (!projectId) {
         throw new Error("projectId is required")

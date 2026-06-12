@@ -25,6 +25,11 @@ router.put('/add-user',
     projectController.addUserToProject
 )
 
+router.delete('/:projectId/users/:memberId',
+    authMiddleWare.authUser,
+    projectController.removeUserFromProject
+)
+
 router.post('/join',
     authMiddleWare.authUser,
     body('inviteCode').isString().isLength({ min: 4 }).withMessage('Invite code is required'),
