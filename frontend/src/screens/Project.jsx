@@ -153,6 +153,31 @@ const canMutateMessage = (message, currentUserId) => {
     )
 }
 
+const copyTextToClipboard = async (text) => {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+        return
+    }
+
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.setAttribute('readonly', '')
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-9999px'
+    textArea.style.top = '0'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+
+    try {
+        if (!document.execCommand('copy')) {
+            throw new Error('Copy command failed')
+        }
+    } finally {
+        document.body.removeChild(textArea)
+    }
+}
+
 function SyntaxHighlightedCode(props) {
     const ref = useRef(null)
 
@@ -430,9 +455,16 @@ const Project = () => {
             return
         }
 
-        await navigator.clipboard.writeText(inviteLink)
-        setCopyState('Copied')
-        window.setTimeout(() => setCopyState(''), 1600)
+        try {
+            await copyTextToClipboard(inviteLink)
+            setActionError('')
+            setCopyState('Copied')
+        } catch {
+            setCopyState('Copy failed')
+            setActionError('Could not copy automatically. Select the invite link and copy it manually.')
+        } finally {
+            window.setTimeout(() => setCopyState(''), 1600)
+        }
     }
 
     const regenerateInviteCode = async () => {
