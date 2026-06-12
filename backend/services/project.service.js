@@ -10,6 +10,8 @@ const allowedSubmissionMimeTypes = new Set([
 ])
 const allowedSubmissionExtensions = new Set([ 'pdf', 'doc', 'docx' ])
 const maxSubmissionFileSize = 4 * 1024 * 1024
+const messageMutationWindowMs = 15 * 60 * 1000
+const deletedMessageText = 'This message was deleted'
 
 const generateInviteCode = () => {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -39,6 +41,20 @@ const validateObjectId = (id, label) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error(`Invalid ${label}`)
     }
+}
+
+const validateMessageText = (message) => {
+    const trimmedMessage = message?.toString?.().trim() || ''
+
+    if (!trimmedMessage) {
+        throw new Error('Message is required')
+    }
+
+    if (trimmedMessage.length > 2000) {
+        throw new Error('Message must be 2000 characters or fewer')
+    }
+
+    return trimmedMessage
 }
 
 const getMemberProject = async ({ projectId, userId }) => {
@@ -105,6 +121,37 @@ const requireProjectOwner = (project, userId) => {
     if (getProjectOwnerId(project) !== userId.toString()) {
         throw new Error('Only project admin can perform this action')
     }
+}
+
+const getMutableProjectMessage = (project, messageId, userId) => {
+    validateObjectId(messageId, 'messageId')
+
+    const message = project.messages.id(messageId)
+
+    if (!message) {
+        throw new Error('Message not found')
+    }
+
+    if (message.isDeleted) {
+        throw new Error('Message has already been deleted')
+    }
+
+    if (message.sender?._id?.toString() !== userId.toString()) {
+        throw new Error('Only the sender can change this message')
+    }
+
+    if (message.sender?._id === 'ai' || message.sender?.email === 'AI') {
+        throw new Error('AI messages cannot be changed')
+    }
+
+    const createdAt = message.createdAt ? new Date(message.createdAt).getTime() : 0
+    const messageAge = Date.now() - createdAt
+
+    if (!createdAt || messageAge > messageMutationWindowMs) {
+        throw new Error('Messages can only be changed within 15 minutes')
+    }
+
+    return message
 }
 
 const getFileExtension = (fileName = '') => {
@@ -256,7 +303,7 @@ const isGeneratedAiErrorMessage = (message) => {
 
 const getAssistantMessages = (project) => {
     return (project.messages || [])
-        .filter(message => !isGeneratedAiErrorMessage(message))
+        .filter(message => !message.isDeleted && !isGeneratedAiErrorMessage(message))
         .slice(-40)
 }
 
@@ -619,13 +666,10 @@ export const updateFileTree = async ({ projectId, fileTree }) => {
 
 export const addMessageToProject = async ({ projectId, userId, sender, message }) => {
     const project = await getMemberProject({ projectId, userId })
-
-    if (!message || !message.trim()) {
-        throw new Error('Message is required')
-    }
+    const trimmedMessage = validateMessageText(message)
 
     const savedMessage = {
-        message: message.trim(),
+        message: trimmedMessage,
         sender,
     }
 
@@ -633,6 +677,34 @@ export const addMessageToProject = async ({ projectId, userId, sender, message }
     await project.save()
 
     return project.messages[ project.messages.length - 1 ]
+}
+
+export const editProjectMessage = async ({ projectId, userId, messageId, message }) => {
+    const project = await getMemberProject({ projectId, userId })
+    const projectMessage = getMutableProjectMessage(project, messageId, userId)
+    const trimmedMessage = validateMessageText(message)
+
+    projectMessage.message = trimmedMessage
+    projectMessage.editedAt = new Date()
+
+    await project.save()
+
+    return projectMessage
+}
+
+export const deleteProjectMessage = async ({ projectId, userId, messageId }) => {
+    const project = await getMemberProject({ projectId, userId })
+    const projectMessage = getMutableProjectMessage(project, messageId, userId)
+    const deletedAt = new Date()
+
+    projectMessage.message = deletedMessageText
+    projectMessage.isDeleted = true
+    projectMessage.deletedAt = deletedAt
+    projectMessage.editedAt = null
+
+    await project.save()
+
+    return projectMessage
 }
 
 export const joinProjectByInviteCode = async ({ inviteCode, userId }) => {

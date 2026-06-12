@@ -41,6 +41,7 @@ const allowedSubmissionMimeTypes = [
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]
 const maxSubmissionFileSize = 4 * 1024 * 1024
+const messageMutationWindowMs = 15 * 60 * 1000
 
 const getMemberId = (member) => {
     if (!member) {
@@ -137,6 +138,21 @@ const formatMessageTime = (date) => {
     })
 }
 
+const canMutateMessage = (message, currentUserId) => {
+    const senderId = getMemberId(message?.sender)
+    const createdAt = message?.createdAt ? new Date(message.createdAt).getTime() : 0
+
+    return Boolean(
+        message?._id
+        && currentUserId
+        && senderId === currentUserId
+        && senderId !== 'ai'
+        && !message.isDeleted
+        && createdAt
+        && Date.now() - createdAt <= messageMutationWindowMs
+    )
+}
+
 function SyntaxHighlightedCode(props) {
     const ref = useRef(null)
 
@@ -174,6 +190,8 @@ const Project = () => {
     const [ socketError, setSocketError ] = useState('')
     const [ actionError, setActionError ] = useState('')
     const [ copyState, setCopyState ] = useState('')
+    const [ editingMessageId, setEditingMessageId ] = useState('')
+    const [ editingMessageText, setEditingMessageText ] = useState('')
     const { user, logout } = useUser()
     const messageBox = useRef(null)
 
@@ -301,6 +319,63 @@ const Project = () => {
             })
             setMessage("")
             setAssistantSummary(null)
+        } catch (error) {
+            setSocketError(error.message)
+        }
+    }
+
+    const startEditingMessage = (projectMessage) => {
+        if (!canMutateMessage(projectMessage, currentUserId)) {
+            setSocketError('Messages can only be changed within 15 minutes')
+            return
+        }
+
+        setSocketError('')
+        setEditingMessageId(projectMessage._id)
+        setEditingMessageText(projectMessage.message)
+    }
+
+    const cancelEditingMessage = () => {
+        setEditingMessageId('')
+        setEditingMessageText('')
+    }
+
+    const saveEditedMessage = () => {
+        const trimmedMessage = editingMessageText.trim()
+
+        if (!editingMessageId || !trimmedMessage || socketStatus !== 'connected') {
+            return
+        }
+
+        try {
+            sendMessage('project-message-edit', {
+                messageId: editingMessageId,
+                message: trimmedMessage,
+            })
+            cancelEditingMessage()
+        } catch (error) {
+            setSocketError(error.message)
+        }
+    }
+
+    const deleteMessage = (projectMessage) => {
+        if (!canMutateMessage(projectMessage, currentUserId)) {
+            setSocketError('Messages can only be changed within 15 minutes')
+            return
+        }
+
+        if (!window.confirm('Delete this message?')) {
+            return
+        }
+
+        try {
+            sendMessage('project-message-delete', {
+                messageId: projectMessage._id,
+            })
+
+            if (editingMessageId === projectMessage._id) {
+                cancelEditingMessage()
+            }
         } catch (error) {
             setSocketError(error.message)
         }
@@ -561,6 +636,26 @@ const Project = () => {
             })
             setAssistantSummary(null)
         })
+        const unsubscribeUpdatedMessage = receiveMessage('project-message-updated', data => {
+            setMessages(prevMessages => prevMessages.map(existingMessage => (
+                existingMessage._id === data._id ? data : existingMessage
+            )))
+            setAssistantSummary(null)
+        })
+        const unsubscribeDeletedMessage = receiveMessage('project-message-deleted', data => {
+            setMessages(prevMessages => prevMessages.map(existingMessage => (
+                existingMessage._id === data._id ? data : existingMessage
+            )))
+            setAssistantSummary(null)
+            setEditingMessageId(currentEditingId => {
+                if (currentEditingId === data._id) {
+                    setEditingMessageText('')
+                    return ''
+                }
+
+                return currentEditingId
+            })
+        })
         const unsubscribeError = receiveMessage('project-message-error', data => {
             setSocketError(data.error)
         })
@@ -575,6 +670,8 @@ const Project = () => {
         return () => {
             unsubscribeReady()
             unsubscribeMessage()
+            unsubscribeUpdatedMessage()
+            unsubscribeDeletedMessage()
             unsubscribeError()
             disconnectSocket()
         }
@@ -708,6 +805,12 @@ const Project = () => {
                                     const showDaySeparator = !previousMessage || !isSameDay(messageDate, previousMessageDate)
                                     const startsGroup = showDaySeparator || senderId !== previousSenderId
                                     const senderLabel = isMine ? 'You' : (isAi ? 'AI assistant' : getDisplayName(msg.sender))
+                                    const messageMeta = [
+                                        formatMessageTime(messageDate),
+                                        msg.editedAt && !msg.isDeleted ? 'edited' : '',
+                                    ].filter(Boolean)
+                                    const canManageMessage = canMutateMessage(msg, currentUserId)
+                                    const isEditingMessage = editingMessageId === msg._id
 
                                     return (
                                         <React.Fragment key={msg._id || `${senderId}-${msg.createdAt}-${msg.message}`}>
@@ -721,13 +824,73 @@ const Project = () => {
                                             {startsGroup && (
                                                 <div className={`mb-1 mt-2 flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                                                     <div className='max-w-[86%] truncate text-[11px] font-medium text-[#888780] sm:max-w-[70%]'>
-                                                        {senderLabel}{formatMessageTime(messageDate) && ` · ${formatMessageTime(messageDate)}`}
+                                                        {senderLabel}{messageMeta.length ? ` · ${messageMeta.join(' · ')}` : ''}
                                                     </div>
                                                 </div>
                                             )}
                                             <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[86%] px-3 py-2 text-sm leading-6 shadow-sm sm:max-w-[70%] ${isMine ? 'rounded-[12px] rounded-br-[4px] bg-[#2c2c2a] text-[#f0efe9]' : 'rounded-[12px] rounded-bl-[4px] border-[0.5px] border-[#e8e7e0] bg-white text-[#2c2c2a]'} ${isAi ? 'w-full max-w-3xl rounded-[12px] border-0 bg-[#2c2c2a] text-[#f0efe9]' : ''}`}>
-                                                    {isAi ? WriteAiMessage(msg.message) : <p className='whitespace-pre-wrap break-words'>{msg.message}</p>}
+                                                <div className={`group max-w-[86%] sm:max-w-[70%] ${isAi ? 'w-full max-w-3xl' : ''}`}>
+                                                    <div className={`px-3 py-2 text-sm leading-6 shadow-sm ${isMine ? 'rounded-[12px] rounded-br-[4px] bg-[#2c2c2a] text-[#f0efe9]' : 'rounded-[12px] rounded-bl-[4px] border-[0.5px] border-[#e8e7e0] bg-white text-[#2c2c2a]'} ${isAi ? 'rounded-[12px] border-0 bg-[#2c2c2a] text-[#f0efe9]' : ''} ${msg.isDeleted ? 'opacity-70' : ''}`}>
+                                                        {isEditingMessage ? (
+                                                            <div className='space-y-2'>
+                                                                <textarea
+                                                                    value={editingMessageText}
+                                                                    onChange={(event) => setEditingMessageText(event.target.value)}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === 'Enter' && !event.shiftKey) {
+                                                                            event.preventDefault()
+                                                                            saveEditedMessage()
+                                                                        }
+
+                                                                        if (event.key === 'Escape') {
+                                                                            cancelEditingMessage()
+                                                                        }
+                                                                    }}
+                                                                    className='min-h-20 w-full resize-none rounded-[10px] border-[0.5px] border-[#d3d1c7] bg-white px-3 py-2 text-sm text-[#2c2c2a] outline-none focus:border-[#888780]'
+                                                                    autoFocus
+                                                                />
+                                                                <div className='flex justify-end gap-2'>
+                                                                    <button
+                                                                        type='button'
+                                                                        onClick={cancelEditingMessage}
+                                                                        className='inline-flex h-8 items-center gap-1 rounded-[8px] border-[0.5px] border-[#d3d1c7] bg-white px-2 text-xs font-medium text-[#2c2c2a] hover:bg-[#f8f8f5]'>
+                                                                        Cancel
+                                                                    </button>
+                                                                    <button
+                                                                        type='button'
+                                                                        onClick={saveEditedMessage}
+                                                                        disabled={!editingMessageText.trim() || socketStatus !== 'connected'}
+                                                                        className='inline-flex h-8 items-center gap-1 rounded-[8px] bg-[#2c2c2a] px-2 text-xs font-medium text-[#f0efe9] disabled:cursor-not-allowed disabled:bg-[#b4b2a9]'>
+                                                                        Save
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ) : isAi ? WriteAiMessage(msg.message) : (
+                                                            <p className={`whitespace-pre-wrap break-words ${msg.isDeleted ? 'italic' : ''}`}>
+                                                                {msg.isDeleted ? 'This message was deleted' : msg.message}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    {canManageMessage && !isEditingMessage && (
+                                                        <div className={`mt-1 flex gap-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                                            <button
+                                                                type='button'
+                                                                onClick={() => startEditingMessage(msg)}
+                                                                className='inline-flex h-7 w-7 items-center justify-center rounded-[8px] border-[0.5px] border-[#d3d1c7] bg-white text-[#5f5e5a] opacity-100 transition hover:bg-[#f8f8f5] hover:text-[#2c2c2a] sm:opacity-0 sm:group-hover:opacity-100'
+                                                                title='Edit message'
+                                                                aria-label='Edit message'>
+                                                                <i className='ri-edit-line'></i>
+                                                            </button>
+                                                            <button
+                                                                type='button'
+                                                                onClick={() => deleteMessage(msg)}
+                                                                className='inline-flex h-7 w-7 items-center justify-center rounded-[8px] border-[0.5px] border-[#d3d1c7] bg-white text-[#a32d2d] opacity-100 transition hover:bg-[#fcebeb] sm:opacity-0 sm:group-hover:opacity-100'
+                                                                title='Delete message'
+                                                                aria-label='Delete message'>
+                                                                <i className='ri-delete-bin-line'></i>
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </React.Fragment>

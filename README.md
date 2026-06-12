@@ -97,6 +97,7 @@ npm run preview  # preview the production build
 - Project assistant summaries are available through `POST /projects/:projectId/assistant/summary` and use Groq when `GROQ_API_KEY` is configured.
 - Socket.IO uses the same backend URL and requires a valid JWT plus `projectId`.
 - Send `@ai` in a project chat message to ask Gemini for a response in the project chat.
+- Project chat messages can be edited or deleted by their sender within 15 minutes.
 - Invite links use `/join/:inviteCode`; users can also paste an invite code on the dashboard.
 - Invite codes and invite-link sharing are visible only to the project admin.
 - Sprints and tickets are scoped to a project.

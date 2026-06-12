@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import projectModel from './models/project.model.js';
 import userModel from './models/user.model.js';
-import { addMessageToProject } from './services/project.service.js';
+import { addMessageToProject, deleteProjectMessage, editProjectMessage } from './services/project.service.js';
 import { generateResult } from './services/ai.service.js';
 
 const port = process.env.PORT || 3000;
@@ -149,6 +149,39 @@ io.on('connection', socket => {
 
 
 
+    })
+
+    socket.on('project-message-edit', async data => {
+        try {
+            const updatedMessage = await editProjectMessage({
+                projectId: socket.roomId,
+                userId: socket.user._id,
+                messageId: data?.messageId,
+                message: data?.message,
+            });
+
+            io.to(socket.roomId).emit('project-message-updated', updatedMessage);
+        } catch (error) {
+            socket.emit('project-message-error', {
+                error: error.message
+            });
+        }
+    })
+
+    socket.on('project-message-delete', async data => {
+        try {
+            const deletedMessage = await deleteProjectMessage({
+                projectId: socket.roomId,
+                userId: socket.user._id,
+                messageId: data?.messageId,
+            });
+
+            io.to(socket.roomId).emit('project-message-deleted', deletedMessage);
+        } catch (error) {
+            socket.emit('project-message-error', {
+                error: error.message
+            });
+        }
     })
 
     socket.on('disconnect', () => {
