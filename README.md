@@ -125,6 +125,8 @@ See [docs/GROQ_ASSISTANT_DEBUGGING.md](docs/GROQ_ASSISTANT_DEBUGGING.md) for the
 
 See [docs/AVATAR_PROFILE_UPDATE_FIX.md](docs/AVATAR_PROFILE_UPDATE_FIX.md) for the avatar persistence bug, root cause, and profile update flow.
 
+See [docs/INTERVIEW_PROJECT_WALKTHROUGH.md](docs/INTERVIEW_PROJECT_WALKTHROUGH.md) or [docs/Interview_Project_Walkthrough.docx](docs/Interview_Project_Walkthrough.docx) for the comprehensive senior-interview project walkthrough, including stack rationale, workflows, WebSocket design, bottlenecks, and scaling plan.
+
 ## Troubleshooting
 
 - If protected routes return `Unauthorized User`, confirm the frontend has a token in local storage and `VITE_API_URL` points to the backend.
